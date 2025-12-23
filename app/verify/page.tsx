@@ -10,12 +10,16 @@ export default function VerifyCodePage() {
 
   // Handle OTP Input logic
   const handleChange = (text: string, index: number) => {
+    // Only allow numbers
+    if (/[^0-9]/.test(text)) return;
+
     const newCode = [...code];
-    newCode[index] = text;
+    // Take only the last character (handles mobile keyboard suggestions)
+    newCode[index] = text.slice(-1);
     setCode(newCode);
 
     // Move to next input if text is entered
-    if (text.length !== 0 && index < 5) {
+    if (newCode[index] !== '' && index < 5) {
       inputs.current[index + 1]?.focus();
     }
   };
@@ -25,6 +29,22 @@ export default function VerifyCodePage() {
     if (e.key === 'Backspace' && index > 0 && code[index] === '') {
       inputs.current[index - 1]?.focus();
     }
+  };
+
+  // Support pasting the entire 6-digit code
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const data = e.clipboardData.getData('text').slice(0, 6);
+    if (!/^\d+$/.test(data)) return;
+
+    const newCode = [...code];
+    data.split('').forEach((char, i) => {
+      newCode[i] = char;
+    });
+    setCode(newCode);
+    
+    // Focus the last filled input or the first empty one
+    const focusIndex = data.length < 6 ? data.length : 5;
+    inputs.current[focusIndex]?.focus();
   };
 
   return (
@@ -38,7 +58,7 @@ export default function VerifyCodePage() {
           
           <h2 className="text-3xl font-extrabold text-gray-900">Verify your email</h2>
           <p className="mt-3 text-sm text-gray-600 leading-relaxed">
-            We ve sent a 6-digit verification code to <br />
+            Weve sent a 6-digit verification code to <br />
             <span className="font-semibold text-gray-900">user@example.com</span>
           </p>
         </div>
@@ -49,10 +69,14 @@ export default function VerifyCodePage() {
             {code.map((digit, index) => (
               <input
                 key={index}
-                ref={(el) => (inputs.current[index] = el)}
+                // FIXED: Wrapped assignment in curly braces to return void
+                ref={(el) => { inputs.current[index] = el; }}
                 type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 maxLength={1}
                 value={digit}
+                onPaste={handlePaste}
                 onChange={(e) => handleChange(e.target.value, index)}
                 onKeyDown={(e) => handleKeyDown(e, index)}
                 className="w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition-all text-gray-900"
