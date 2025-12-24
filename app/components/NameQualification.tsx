@@ -11,15 +11,21 @@ interface Qualification {
   percentage: string;
 }
 
+// Updated interface to support multiple boolean selections
 interface LanguageEntry {
   language: string;
-  proficiency: string; // Native, Speak, Read, Write
+  read: boolean;
+  write: boolean;
+  speak: boolean;
+  native: boolean;
 }
 
 export const NameQualification = () => {
   const [qualifications, setQualifications] = useState<Qualification[]>([]);
+  
+  // Updated initial state structure for checkboxes
   const [languages, setLanguages] = useState<LanguageEntry[]>([
-    { language: '', proficiency: 'Speak' }
+    { language: '', read: false, write: false, speak: false, native: false }
   ]);
 
   // --- Handlers for Qualifications ---
@@ -38,14 +44,20 @@ export const NameQualification = () => {
   };
 
   // --- Handlers for Languages ---
-  const addLanguageRow = () => setLanguages([...languages, { language: '', proficiency: 'Speak' }]);
+  // Updated to add object with boolean flags
+  const addLanguageRow = () => setLanguages([...languages, { language: '', read: false, write: false, speak: false, native: false }]);
   
-  const updateLanguage = (index: number, field: keyof LanguageEntry, value: string) => {
-    const newLangs = [...languages];
-    (newLangs[index] )[field] = value;
-    setLanguages(newLangs);
-  };
-
+  // Updated handler to accept boolean or string values
+const updateLanguage = <K extends keyof LanguageEntry>(
+  index: number, 
+  field: K, 
+  value: LanguageEntry[K]
+) => {
+  setLanguages(prev => prev.map((lang, i) => 
+    // Return a new object for the row we are updating
+    i === index ? { ...lang, [field]: value } : lang
+  ));
+};
   const removeLanguage = (index: number) => {
     setLanguages(languages.filter((_, i) => i !== index));
   };
@@ -134,8 +146,8 @@ export const NameQualification = () => {
           <table className="w-full text-sm border-collapse">
             <thead className="bg-slate-100 text-slate-700 text-[10px] font-black uppercase border-b border-slate-300">
               <tr>
-                <th className="p-3 border-r border-slate-300 text-left">Language</th>
-                <th className="p-3 border-r border-slate-300 text-left w-64">Proficiency Level</th>
+                <th className="p-3 border-r border-slate-300 text-left w-1/4">Language</th>
+                <th className="p-3 border-r border-slate-300 text-left">Proficiency (Check all that apply)</th>
                 <th className="p-3 w-12 text-center"></th>
               </tr>
             </thead>
@@ -145,24 +157,55 @@ export const NameQualification = () => {
                   <td className="p-3 border-r border-slate-300">
                     <input 
                       type="text" 
-                      placeholder="e.g. English, Hindi, Bengali"
+                      placeholder="e.g. English"
                       className="w-full outline-none font-bold text-slate-900 placeholder:text-slate-500"
                       value={lang.language}
                       onChange={(e) => updateLanguage(idx, 'language', e.target.value)}
                     />
                   </td>
                   <td className="p-3 border-r border-slate-300 bg-blue-50/20">
-                    <select 
-                      className="w-full bg-transparent outline-none font-bold text-blue-800 text-xs cursor-pointer"
-                      value={lang.proficiency}
-                      onChange={(e) => updateLanguage(idx, 'proficiency', e.target.value)}
-                    >
-                      <option value="Native">Native (Mother Tongue)</option>
-                      <option value="Speak">Speak</option>
-                      <option value="Read">Read</option>
-                      <option value="Write">Write</option>
-                      <option value="Full Proficiency">Speak, Read & Write</option>
-                    </select>
+                    {/* Checkbox Group */}
+                    <div className="flex flex-wrap items-center gap-4">
+                      <label className="flex items-center gap-1.5 cursor-pointer hover:opacity-80">
+                        <input 
+                          type="checkbox" 
+                          checked={lang.read} 
+                          onChange={(e) => updateLanguage(idx, 'read', e.target.checked)}
+                          className="w-4 h-4 accent-blue-700 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-700">Read</span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer hover:opacity-80">
+                        <input 
+                          type="checkbox" 
+                          checked={lang.write} 
+                          onChange={(e) => updateLanguage(idx, 'write', e.target.checked)}
+                          className="w-4 h-4 accent-blue-700 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-700">Write</span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer hover:opacity-80">
+                        <input 
+                          type="checkbox" 
+                          checked={lang.speak} 
+                          onChange={(e) => updateLanguage(idx, 'speak', e.target.checked)}
+                          className="w-4 h-4 accent-blue-700 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-700">Speak</span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 border-l border-slate-300 pl-4">
+                        <input 
+                          type="checkbox" 
+                          checked={lang.native} 
+                          onChange={(e) => updateLanguage(idx, 'native', e.target.checked)}
+                          className="w-4 h-4 accent-blue-700 cursor-pointer"
+                        />
+                        <span className="text-xs font-black italic text-blue-800">Native</span>
+                      </label>
+                    </div>
                   </td>
                   <td className="p-3 text-center">
                     <button onClick={() => removeLanguage(idx)} className="text-slate-400 hover:text-red-600 transition-colors">
