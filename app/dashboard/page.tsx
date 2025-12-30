@@ -78,10 +78,34 @@ export default function RezillionDashboard() {
               href="/candidate-profile" 
               className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 whitespace-nowrap"
             >
-              Complete Profile
+              Complete Basic Details
             </Link>
           </div>
         </motion.div>
+         <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8 p-1 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 rounded-3xl"
+        >
+          <div className="bg-white rounded-[1.4rem] p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center">
+                <Sparkles className="h-6 w-6 text-indigo-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Complete your profile to stand out</h2>
+                <p className="text-sm text-slate-500">Employers in the Solar sector prefer candidates with detailed technical skills.</p>
+              </div>
+            </div>
+            <Link 
+              href="/skill-profile" 
+              className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 whitespace-nowrap"
+            >
+              Complete Skill
+            </Link>
+          </div>
+        </motion.div>
+
 
         <header className="mb-8">
           <h1 className="text-3xl font-black tracking-tight">Solar Energy Opportunities</h1>

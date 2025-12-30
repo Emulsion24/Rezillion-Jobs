@@ -22,8 +22,7 @@ export default function ProfilePage() {
         {/* Step 2: Certificates and Experience */}
         <CertificateExperience />
 
-        {/* Step 3: Technical Specialized Section */}
-        <SolarDesignSection />
+    
         <AdditionalDetails/>
 
   
