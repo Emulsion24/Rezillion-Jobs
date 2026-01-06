@@ -13,11 +13,26 @@ import {
   ArrowLeft,
   ChevronRight,
   Plus,
-  X
+  X,
+  Zap,         // Added for Electrical/Substation
+  PenTool,     // Added for Mechanical Design
+  TrendingUp,  // Added for Finance
+  HardHat      // Added for Site/Safety
 } from 'lucide-react';
 
 // --- Types ---
-type RoleKey = "design" | "om" | "project" | "electrical" | "mechanical";
+// Updated to include new roles
+type RoleKey = 
+  | "design" 
+  | "om" 
+  | "project" 
+  | "electrical" // Existing Technician
+  | "mechanical" // Existing Technician
+  | "mech_eng"   // NEW
+  | "elec_eng"   // NEW
+  | "substation" // NEW
+  | "finance";   // NEW
+
 type ViewState = "root" | "pv_subroles" | "form";
 
 interface RowItem {
@@ -66,6 +81,7 @@ const createRow = (name: string = ""): RowItem => ({
 
 // --- CONSTANT DATA STRUCTURE ---
 const ROLES_DB: Record<RoleKey, RoleStructure> = {
+  // --- EXISTING PV ROLES ---
   design: {
     id: "design",
     label: "Solar Design Engineer",
@@ -254,9 +270,206 @@ const ROLES_DB: Record<RoleKey, RoleStructure> = {
       }
     ]
   },
+
+  // --- NEW ADDED ROLES (ENGINEERING) ---
+  mech_eng: {
+    id: "mech_eng",
+    label: "Mechanical Engineer (Solar)",
+    description: "Structural Design, Mounting Systems & Site Oversight",
+    sections: [
+      {
+        title: "1. Structural Design and Mounting Systems",
+        tools: [
+          createRow("AutoCAD"),
+          createRow("STAAD Pro"),
+          createRow("PVsyst")
+        ],
+        domain: [
+          createRow("Design racking, foundations, and support structures"),
+          createRow("Load analysis (wind, snow, seismic) for solar mounts"),
+          createRow("Develop cost-effective mounting solutions")
+        ]
+      },
+      {
+        title: "2. Project Execution and Site Oversight",
+        tools: [],
+        domain: [
+          createRow("Supervise fabrication, assembly, and installation"),
+          createRow("Coordinate with EPC teams for commissioning"),
+          createRow("Hands-on experience with fabrication & welding")
+        ]
+      },
+      {
+        title: "3. Quality Control and Maintenance",
+        tools: [],
+        domain: [
+          createRow("Perform inspections and troubleshoot mechanical issues"),
+          createRow("Optimize systems for performance"),
+          createRow("Ensure durability against environmental loads")
+        ]
+      },
+      {
+        title: "4. Innovation and Material Selection",
+        tools: [],
+        domain: [
+          createRow("Focus on corrosion resistance and efficiency"),
+          createRow("Develop solutions for hybrid systems/enclosures"),
+          createRow("Knowledge of standards (IS, IEC) & civil integration")
+        ]
+      }
+    ]
+  },
+  elec_eng: {
+    id: "elec_eng",
+    label: "Electrical Engineer (Solar)",
+    description: "System Design, Grid Integration & Power Electronics",
+    sections: [
+      {
+        title: "1. System Design and Integration",
+        tools: [
+          createRow("PVsyst"),
+          createRow("ETAP"),
+          createRow("MATLAB/Simulink"),
+          createRow("AutoCAD Electrical")
+        ],
+        domain: [
+          createRow("Engineer electrical layouts (inverters, cabling, grid)"),
+          createRow("Expertise in AC/DC systems & power electronics"),
+          createRow("Design schematics and circuit layouts")
+        ]
+      },
+      {
+        title: "2. Grid Interconnection and Optimization",
+        tools: [],
+        domain: [
+          createRow("Handle net metering & BESS integration"),
+          createRow("Performance monitoring for efficient energy flow"),
+          createRow("Compliance with codes (NEC, IEC, Indian Rules)")
+        ]
+      },
+      {
+        title: "3. Installation and Commissioning",
+        tools: [],
+        domain: [
+          createRow("Oversee wiring, testing, and startup of Arrays"),
+          createRow("Ensure compliance in MW-scale or rooftop projects"),
+          createRow("Coordination with mechanical/civil teams")
+        ]
+      },
+      {
+        title: "4. Troubleshooting and Maintenance",
+        tools: [],
+        domain: [
+          createRow("Diagnose faults and upgrade systems"),
+          createRow("Manage O&M for long-term reliability"),
+          createRow("Data analytics for yield prediction & fault detection")
+        ]
+      }
+    ]
+  },
+  substation: {
+    id: "substation",
+    label: "Substation Engineer",
+    description: "High-Voltage Design, Grid Protection & SCADA",
+    sections: [
+      {
+        title: "1. Substation Design and Construction",
+        tools: [
+          createRow("ETAP"),
+          createRow("PSCAD"),
+          createRow("AutoCAD"),
+          createRow("DigSILENT PowerFactory")
+        ],
+        domain: [
+          createRow("Develop high-voltage substations & switchgear"),
+          createRow("Transformer and stepping up power design"),
+          createRow("Layout and electrical drawings")
+        ]
+      },
+      {
+        title: "2. Grid Integration and Protection",
+        tools: [],
+        domain: [
+          createRow("Implement relays, SCADA, and protection systems"),
+          createRow("Expertise in protection devices (relays, breakers)"),
+          createRow("Risk management for intermittency and overloads")
+        ]
+      },
+      {
+        title: "3. Commissioning and Testing",
+        tools: [],
+        domain: [
+          createRow("Oversee buildup, inspections, and grid synchronization"),
+          createRow("Transient simulations for stability"),
+          createRow("Regulatory compliance")
+        ]
+      },
+      {
+        title: "4. Operations and Upgrades",
+        tools: [],
+        domain: [
+          createRow("Monitor performance and analyze faults"),
+          createRow("Expand substations for growing solar capacities"),
+          createRow("Leadership in EPC teams for budgeting")
+        ]
+      }
+    ]
+  },
+  finance: {
+    id: "finance",
+    label: "Finance Professional (Solar)",
+    description: "Project Finance, Modeling, Budgeting & Compliance",
+    sections: [
+      {
+        title: "1. Financial Modeling and Analysis",
+        tools: [
+          createRow("Microsoft Excel"),
+          createRow("PVsyst (financial modules)"),
+          createRow("Python for finance")
+        ],
+        domain: [
+          createRow("Build financial models (CAPEX/OPEX, IRR, Payback)"),
+          createRow("Sensitivity analysis for MW-scale/Rooftop"),
+          createRow("Yield and revenue forecasting integration")
+        ]
+      },
+      {
+        title: "2. Project Finance and Funding",
+        tools: [],
+        domain: [
+          createRow("Structure debt/equity financing"),
+          createRow("Negotiate with banks, NBFCs, and investors"),
+          createRow("Valuation in renewables")
+        ]
+      },
+      {
+        title: "3. Budgeting, Cost Control, and Reporting",
+        tools: [
+          createRow("Power BI/Tableau"),
+          createRow("Tally/MS Dynamics NAV")
+        ],
+        domain: [
+          createRow("Prepare project budgets & track cash flows"),
+          createRow("Generate MIS reports for management"),
+          createRow("Analytical skills for cost optimization")
+        ]
+      },
+      {
+        title: "4. Accounting, Compliance, and Taxation",
+        tools: [],
+        domain: [
+          createRow("GST/income tax compliance & audits"),
+          createRow("Regulatory filings for incentives (subsidies)"),
+          createRow("Knowledge of MNRE guidelines & net metering")
+        ]
+      }
+    ]
+  },
+
+  // --- EXISTING ROOT TECHNICAL ROLES ---
   electrical: {
     id: "electrical",
-    label: "Electrical Technician / Engineer",
+    label: "Electrical Technician",
     description: "ITI / Diploma / Exp. - Wiring, Inverters, Testing & Safety",
     sections: [
       {
@@ -622,7 +835,7 @@ const RoleSpecificForm = ({ initialSections, roleLabel }: { initialSections: Sec
 };
 
 // ----------------------------------------------------------------------
-// COMPONENT: Selection Card (Moved OUTSIDE to fix render error)
+// COMPONENT: Selection Card
 // ----------------------------------------------------------------------
 const SelectionCard = ({ 
   onClick, 
@@ -633,7 +846,7 @@ const SelectionCard = ({
   colorClass = "blue"
 }: { 
   onClick: () => void, 
-  icon: React.ElementType, // Fixed: Using React.ElementType instead of any
+  icon: React.ElementType,
   title: string, 
   description: string,
   active?: boolean,
@@ -673,9 +886,14 @@ export const SolarDesignSection = () => {
   const [view, setView] = useState<ViewState>('root');
   const [selectedRole, setSelectedRole] = useState<RoleKey | null>(null);
 
+  // PV roles and the new engineering roles act as sub-tracks
+  const isSubTrack = (role: RoleKey | null) => 
+    role && ['design', 'om', 'project', 'mech_eng', 'elec_eng', 'substation', 'finance'].includes(role);
+
   const handleBack = () => {
     if (view === 'form') {
-      if (selectedRole && ['design', 'om', 'project'].includes(selectedRole)) {
+      // If we are in one of the sub-tracks, go back to the sub-track selection view
+      if (isSubTrack(selectedRole)) {
         setView('pv_subroles');
       } else {
         setView('root');
@@ -711,16 +929,16 @@ export const SolarDesignSection = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* 1. PV Engineer Category */}
+            {/* 1. PV Engineer Category - EXPANDED */}
             <SelectionCard 
               onClick={handlePVGroupSelect}
               icon={Briefcase}
               title="PV System Engineering"
-              description="Design, O&M, and Project Management tracks."
+              description="Design, Engineering, Finance, and Project Management tracks."
               colorClass="blue"
             />
             
-            {/* 2. Electrical */}
+            {/* 2. Electrical Technician */}
             <SelectionCard 
               onClick={() => handleRoleSelect('electrical')}
               icon={Cpu}
@@ -729,7 +947,7 @@ export const SolarDesignSection = () => {
               colorClass="emerald"
             />
 
-            {/* 3. Mechanical */}
+            {/* 3. Mechanical Technician */}
             <SelectionCard 
               onClick={() => handleRoleSelect('mechanical')}
               icon={Settings}
@@ -741,7 +959,7 @@ export const SolarDesignSection = () => {
         </div>
       )}
 
-      {/* --- VIEW 2: PV SUB-ROLES SELECTION --- */}
+      {/* --- VIEW 2: PV SUB-ROLES SELECTION (Updated to include 4 new roles) --- */}
       {view === 'pv_subroles' && (
         <div className="animate-in fade-in slide-in-from-right-8 duration-300">
           <div className="flex items-center gap-4 mb-6 border-b border-slate-200 pb-4">
@@ -758,7 +976,9 @@ export const SolarDesignSection = () => {
               </h2>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Updated Grid to hold 7 items */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Original 3 */}
             <SelectionCard 
               onClick={() => handleRoleSelect('design')}
               icon={Briefcase}
@@ -777,6 +997,38 @@ export const SolarDesignSection = () => {
               title={ROLES_DB.project.label}
               description={ROLES_DB.project.description}
             />
+
+            {/* NEW: Mechanical Engineer */}
+            <SelectionCard 
+              onClick={() => handleRoleSelect('mech_eng')}
+              icon={PenTool}
+              title={ROLES_DB.mech_eng.label}
+              description="Structural Design, Mounting & Site Oversight"
+            />
+
+            {/* NEW: Electrical Engineer */}
+            <SelectionCard 
+              onClick={() => handleRoleSelect('elec_eng')}
+              icon={Zap}
+              title={ROLES_DB.elec_eng.label}
+              description="Grid Integration, System Design & Optimization"
+            />
+
+            {/* NEW: Substation Engineer */}
+            <SelectionCard 
+              onClick={() => handleRoleSelect('substation')}
+              icon={HardHat}
+              title={ROLES_DB.substation.label}
+              description="High Voltage, Transformers & Grid Protection"
+            />
+
+            {/* NEW: Finance */}
+            <SelectionCard 
+              onClick={() => handleRoleSelect('finance')}
+              icon={TrendingUp}
+              title={ROLES_DB.finance.label}
+              description="Financial Modeling, Funding & Compliance"
+            />
           </div>
         </div>
       )}
@@ -791,7 +1043,7 @@ export const SolarDesignSection = () => {
               className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition-colors"
             >
               <ArrowLeft size={18} />
-              {['design', 'om', 'project'].includes(selectedRole) ? 'Back to PV Tracks' : 'Back to Domains'}
+              {isSubTrack(selectedRole) ? 'Back to PV Tracks' : 'Back to Domains'}
             </button>
             <div className="h-6 w-px bg-slate-300"></div>
             <span className="text-sm font-medium text-slate-400">
