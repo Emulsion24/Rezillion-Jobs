@@ -1,53 +1,68 @@
 import { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 
-// 1. Define strict types for SQL parameters (No 'any')
+// 1. Strict Types (Avoids 'any')
 type Primitive = string | number | boolean | null | Date;
 type SqlParam = Primitive | Primitive[];
 
-// 2. Singleton Setup for Next.js (Prevents connection exhaustion in HMR/Serverless)
-// We extend the global interface so TypeScript doesn't complain about adding properties to globalThis
+// 2. Singleton Interface to handle Next.js Hot Reloading
 declare global {
   // eslint-disable-next-line no-var
   var _postgresPool: Pool | undefined;
 }
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not defined');
-}
+// 3. Lazy Configuration Helper
+// This prevents "DATABASE_URL is undefined" errors during 'npm run build'
+const getPoolConfig = (): PoolConfig => {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is not defined');
+  }
 
-const poolConfig: PoolConfig = {
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // Necessary for Supabase Transaction Pooler
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close clients after 30 seconds of inactivity
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+  return {
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }, // Required for Supabase
+    max: 20, // Max number of connections
+    idleTimeoutMillis: 30000, // Close idle connections after 30s
+    connectionTimeoutMillis: 5000, // Fail if connection takes longer than 5s
+  };
 };
 
-// 3. Create or reuse the pool
-const pool = global._postgresPool || new Pool(poolConfig);
+// 4. Singleton Pool Getter
+const getPool = (): Pool => {
+  // Re-use existing pool if it exists (Development HMR)
+  if (global._postgresPool) {
+    return global._postgresPool;
+  }
 
-// In development, save the pool to the global object to prevent recreation
-if (process.env.NODE_ENV !== 'production') {
-  global._postgresPool = pool;
-}
+  // Create a new pool
+  const config = getPoolConfig();
+  const pool = new Pool(config);
 
-// 4. The Wrapper
+  // Save to global object in development to prevent connection exhaustion
+  if (process.env.NODE_ENV !== 'production') {
+    global._postgresPool = pool;
+  }
+
+  return pool;
+};
+
+// 5. The Exported Wrapper
 export const db = {
   /**
-   * A strictly typed wrapper around pool.query.
+   * Strictly typed query wrapper.
    * @param text The SQL query string
-   * @param params The array of parameters (strictly typed, no any)
-   * @returns A Promise resolving to the QueryResult
+   * @param params The array of parameters
    */
   query: async <T extends QueryResultRow = QueryResultRow>(
     text: string,
     params?: SqlParam[]
   ): Promise<QueryResult<T>> => {
     const start = Date.now();
+    const pool = getPool(); // Initialize pool only when needed
+
     try {
       const res = await pool.query<T>(text, params);
       
-      // Optional: Log long-running queries in production
+      // Performance: Log slow queries (> 5 seconds)
       const duration = Date.now() - start;
       if (duration > 5000) {
         console.warn(`[Slow Query] ${duration}ms: ${text}`);
@@ -55,18 +70,18 @@ export const db = {
       
       return res;
     } catch (error) {
+      // Log the error with the query that caused it for debugging
       console.error('[Database Error]', { text, error });
       throw error;
     }
   },
 
   /**
-   * Helper to get a single client for transactions
+   * Get a raw client (Useful for Transactions: BEGIN / COMMIT / ROLLBACK)
    */
   getClient: async () => {
+    const pool = getPool();
     const client = await pool.connect();
-    // Monkey patch the query method to track usage or add logging if needed
-    // or just return the raw client
     return client;
   }
 };
