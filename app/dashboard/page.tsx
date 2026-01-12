@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { 
   Search, MapPin, Bell, User, 
   LogOut, Settings, ChevronRight, Sparkles,
@@ -436,9 +437,22 @@ const ApplicationsView = () => (
 export default function RezillionCandidateDashboard() {
   const [activeTab, setActiveTab] = useState('find-jobs');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const router = useRouter();
 
   // Close mobile menu helper
   const handleMobileNav = () => setIsMobileMenuOpen(false);
+  const handleLogout = async () => {
+    try {
+      // Call the backend API to delete the cookie
+      await fetch('/api/logout', { method: 'POST' });
+      
+      // Redirect to login page
+      router.push('/login');
+      router.refresh(); // Ensure server components update
+    } catch (error) {
+      console.error('Logout failed', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans text-slate-900 flex">
@@ -529,7 +543,7 @@ export default function RezillionCandidateDashboard() {
                 <p className="text-sm font-bold text-slate-900 truncate">Aditya Verma</p>
                 <p className="text-xs text-slate-500 truncate">View Profile</p>
              </div>
-             <button className="text-slate-400 hover:text-red-500"><LogOut size={18} /></button>
+             <button onClick={handleLogout} className="text-slate-400 hover:text-red-500"><LogOut size={18} /></button>
           </div>
         </div>
       </aside>

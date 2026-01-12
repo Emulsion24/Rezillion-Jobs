@@ -3,169 +3,251 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Mail, Lock, ArrowRight, Chrome, Loader2, Briefcase, User } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Mail, Lock, Loader2, Briefcase, User, Eye, EyeOff, 
+  AlertTriangle, Chrome 
+} from 'lucide-react';
 
-type UserRole = 'candidate' | 'employer';
+// 1. Strict Type Definitions
+type UserRole = 'candidate' | 'employer' | 'admin';
+
+// Define what the API returns
+interface LoginSuccessResponse {
+  redirectUrl: string;
+}
+
+interface ApiErrorResponse {
+  error: string;
+}
+
+interface GoogleAuthResponse {
+  url?: string;
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [role, setRole] = useState<UserRole>('candidate');
+  const [role, setRole] = useState<UserRole>('candidate'); // Default to Talent
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Simulate a login delay then redirect based on role
-  const handleMockLogin = (e: React.FormEvent) => {
+  const [formData, setFormData] = useState({ email: '', password: '' });
+
+  // 1. Handle Normal Email/Pass Login
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate API call delay
-    setTimeout(() => {
-      setIsLoading(false);
-      if (role === 'employer') {
-        router.push('/employer/dashboard');
-      } else {
-        router.push('/dashboard');
+    setError(null);
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          role: role // 'candidate' or 'employer'
+        }),
+      });
+
+      // Securely cast the response
+      const data = (await res.json()) as LoginSuccessResponse | ApiErrorResponse;
+
+      if (!res.ok) {
+        // Type narrowing: check if 'error' exists in data
+        if ('error' in data) {
+          throw new Error(data.error);
+        } else {
+          throw new Error('Invalid credentials');
+        }
       }
-    }, 1500);
+
+      // Success: Redirect
+      if ('redirectUrl' in data) {
+        router.push(data.redirectUrl);
+        router.refresh();
+      }
+
+    } catch (err: unknown) {
+      // Strict error handling
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred");
+      }
+      setIsLoading(false);
+    }
+  };
+
+  // 2. Handle Google Login
+  const handleGoogleLogin = async () => {
+    setError(null);
+    try {
+      const res = await fetch(`/api/auth/google?role=${role}`);
+      const data = (await res.json()) as GoogleAuthResponse;
+      
+      if (data.url) {
+        window.location.href = data.url; // Redirect user to Google
+      } else {
+        setError("Failed to initialize Google Login");
+      }
+    } catch (err: unknown) {
+      setError("Could not connect to authentication server");
+    }
+  };
+
+  // Helper for dynamic colors
+  const getThemeColor = () => {
+    if (role === 'employer') return 'text-slate-900 bg-slate-900 shadow-slate-200 hover:bg-slate-800';
+    return 'text-indigo-600 bg-indigo-600 shadow-indigo-200 hover:bg-indigo-700';
+  };
+
+  const getFocusColor = () => {
+    if (role === 'employer') return 'focus:border-slate-900 focus:shadow-slate-50';
+    return 'focus:border-indigo-600 focus:shadow-indigo-50';
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] px-4 font-sans selection:bg-indigo-100">
+    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] px-4 font-sans text-slate-900">
+      
       {/* Background Decor */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] rounded-full bg-indigo-50/50 blur-[120px]" />
-        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-50/50 blur-[120px]" />
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+         <div className="absolute top-0 left-0 w-full h-full bg-slate-50"></div>
+         {role === 'employer' && <div className="absolute bottom-0 left-0 w-[50%] h-[50%] bg-blue-100/30 blur-[120px] transition-all duration-700" />}
+         {role === 'candidate' && <div className="absolute top-[20%] left-[20%] w-[40%] h-[40%] bg-indigo-100/30 blur-[120px] transition-all duration-700" />}
       </div>
 
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="relative z-10 max-w-md w-full bg-white p-8 md:p-12 rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.06)] border border-white/50"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative z-10 max-w-[440px] w-full bg-white p-8 md:p-10 rounded-3xl shadow-[0_20px_70px_-10px_rgba(0,0,0,0.06)] border border-white/50"
       >
-        {/* Role Toggle Switch */}
+        {/* Role Switcher (2 Tabs: Candidate & Employer) */}
         <div className="flex bg-slate-100/80 p-1.5 rounded-2xl mb-8 relative">
-          <button
-            onClick={() => setRole('candidate')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all z-10 ${
-              role === 'candidate' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <User size={14} strokeWidth={3} /> Candidate
-          </button>
-          <button
-            onClick={() => setRole('employer')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all z-10 ${
-              role === 'employer' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            <Briefcase size={14} strokeWidth={3} /> Employer
-          </button>
-
-          {/* Animated Background Pill */}
           <motion.div
             layout
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white rounded-xl shadow-sm border border-slate-200/50 ${
               role === 'employer' ? 'left-[calc(50%+3px)]' : 'left-1.5'
             }`}
           />
+          
+          <button
+            type="button"
+            onClick={() => setRole('candidate')}
+            className={`relative flex-1 z-10 flex items-center justify-center gap-2 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${role === 'candidate' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <User size={14} strokeWidth={2.5} /> Talent
+          </button>
+          <button
+            type="button"
+            onClick={() => setRole('employer')}
+            className={`relative flex-1 z-10 flex items-center justify-center gap-2 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${role === 'employer' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <Briefcase size={14} strokeWidth={2.5} /> Employer
+          </button>
         </div>
 
-        <div className="text-center mb-10">
-          <motion.div 
-            key={role} // Animate on change
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className={`inline-block px-4 py-1.5 mb-4 rounded-full text-xs font-bold uppercase tracking-widest ${
-              role === 'employer' 
-                ? 'bg-blue-50 text-blue-700' 
-                : 'bg-indigo-50 text-indigo-600'
-            }`}
-          >
-            {role === 'employer' ? 'Recruiter Portal' : 'Job Seeker Portal'}
-          </motion.div>
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Welcome Back</h2>
-          <p className="mt-3 text-slate-500 font-medium">
-            {role === 'employer' 
-              ? 'Log in to find your next hire.' 
-              : 'Log in to manage your applications.'}
+        <div className="mb-6">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+            Welcome Back
+          </h2>
+          <p className="text-slate-500 font-medium text-sm mt-1">
+            Sign in to your {role === 'employer' ? 'employer' : 'talent'} account.
           </p>
         </div>
 
-        {/* Google Login */}
-        <button className="w-full flex items-center justify-center gap-3 py-3.5 px-4 border-2 border-slate-100 rounded-2xl hover:bg-slate-50 hover:border-slate-200 transition-all font-bold text-slate-700 mb-8 active:scale-[0.98]">
+        {/* Error Message */}
+        <AnimatePresence>
+          {error && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden mb-5"
+            >
+              <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm font-semibold flex items-center gap-3">
+                <AlertTriangle size={18} />
+                {error}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Google Login Button */}
+        <button 
+          type="button"
+          onClick={handleGoogleLogin}
+          className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-white border-2 border-slate-100 rounded-2xl hover:bg-slate-50 hover:border-slate-200 transition-all font-bold text-slate-700 mb-6 active:scale-[0.98]"
+        >
           <Chrome className="h-5 w-5 text-red-500" />
-          Continue with Google
+          <span>Sign in with Google</span>
         </button>
 
-        <div className="relative mb-8">
-          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-200/80"></span></div>
           <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-4 text-slate-400 font-bold tracking-widest">Or email</span></div>
         </div>
 
-        <form onSubmit={handleMockLogin} className="space-y-5">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Work Email</label>
+        {/* Email Form */}
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Email</label>
             <div className="relative group">
-              <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 transition-colors ${role === 'employer' ? 'group-focus-within:text-blue-600' : 'group-focus-within:text-indigo-600'}`} />
+              <Mail className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 group-focus-within:text-slate-800 transition-colors" />
               <input 
                 type="email" 
                 required
-                placeholder={role === 'employer' ? "hr@company.com" : "name@example.com"}
-                className={`w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white outline-none transition-all text-sm font-medium text-slate-900 ${
-                  role === 'employer' ? 'focus:border-blue-600' : 'focus:border-indigo-600'
-                }`}
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                placeholder="name@example.com"
+                className={`w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white outline-none transition-all font-medium text-slate-900 ${getFocusColor()}`}
               />
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Password</label>
             <div className="relative group">
-              <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 transition-colors ${role === 'employer' ? 'group-focus-within:text-blue-600' : 'group-focus-within:text-indigo-600'}`} />
+              <Lock className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 group-focus-within:text-slate-800 transition-colors" />
               <input 
-                type="password" 
+                type={showPassword ? "text" : "password"}
                 required
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
                 placeholder="••••••••" 
-                className={`w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white outline-none transition-all text-sm font-medium text-slate-900 ${
-                  role === 'employer' ? 'focus:border-blue-600' : 'focus:border-indigo-600'
-                }`}
+                className={`w-full pl-12 pr-12 py-3 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white outline-none transition-all font-medium text-slate-900 ${getFocusColor()}`}
               />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-3.5 text-slate-400 hover:text-slate-600"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <Link href="/forgot-password" size-sm className={`text-sm font-bold transition-colors ${role === 'employer' ? 'text-blue-600 hover:text-blue-700' : 'text-indigo-600 hover:text-indigo-700'}`}>
+          <div className="flex justify-end pt-1">
+            <Link href="/forgot-password" className={`text-xs font-bold hover:underline ${role === 'employer' ? 'text-slate-600' : 'text-indigo-600'}`}>
               Forgot Password?
             </Link>
           </div>
 
           <button 
+            type="submit"
             disabled={isLoading}
-            className={`w-full flex items-center justify-center py-4 px-4 text-white font-bold rounded-2xl shadow-xl transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed ${
-              role === 'employer' 
-                ? 'bg-slate-900 hover:bg-blue-600 shadow-blue-100' 
-                : 'bg-slate-900 hover:bg-indigo-600 shadow-indigo-100'
-            }`}
+            className={`w-full flex items-center justify-center py-4 px-4 text-white font-bold rounded-2xl shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:hover:translate-y-0 ${getThemeColor()}`}
           >
-            {isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <>
-                {role === 'employer' ? 'Employer Login' : 'Sign In'}
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </>
-            )}
+            {isLoading ? <Loader2 className="animate-spin" /> : 'Sign In'}
           </button>
         </form>
 
         <p className="mt-8 text-center text-sm font-medium text-slate-500">
-          {role === 'employer' ? 'Want to post a job? ' : 'New to JobFlow? '}
-          <Link 
-            href={role === 'employer' ? "/employer/signup" : "/signup"} 
-            className={`font-bold transition-colors ${role === 'employer' ? 'text-blue-600 hover:text-blue-700' : 'text-indigo-600 hover:text-indigo-700'}`}
-          >
-            {role === 'employer' ? 'Register Company' : 'Create account'}
+          Dont have an account?{' '}
+          <Link href="/signup" className={`font-bold hover:underline ${role === 'employer' ? 'text-slate-900' : 'text-indigo-600'}`}>
+            Create account
           </Link>
         </p>
       </motion.div>

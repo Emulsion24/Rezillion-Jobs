@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -21,7 +22,8 @@ import {
   Lightbulb,
   GraduationCap,
   ChevronRight,
-  PlayCircle
+  PlayCircle,
+  LogOut
 } from 'lucide-react';
 
 // --- 1. DATA & TYPES ---
@@ -103,6 +105,7 @@ interface JobPost {
 // --- 2. MAIN COMPONENT ---
 
 export default function EmployerDashboardPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [jobs, setJobs] = useState<JobPost[]>([
     { id: 101, title: "Senior Solar Engineer", roleCategory: "design", applicants: 12, status: 'Active', location: "Pune", postedDate: "2 days ago", type: "Permanent" },
@@ -195,6 +198,7 @@ export default function EmployerDashboardPage() {
         skills: roleData ? roleData.skills.join(", ") : prev.skills // Auto-fill skills
       }));
     };
+
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -405,6 +409,7 @@ export default function EmployerDashboardPage() {
       setSelectedRoleKey(e.target.value as RoleKey);
       setSelectedSkills([]); 
     };
+    
 
     const toggleSkill = (skill: string) => {
       if (selectedSkills.includes(skill)) setSelectedSkills(selectedSkills.filter(s => s !== skill));
@@ -790,6 +795,19 @@ export default function EmployerDashboardPage() {
       </div>
     );
   };
+      const handleLogout = async () => {
+    try {
+      // Call the backend API to delete the cookie
+      await fetch('/api/logout', { method: 'POST' });
+      
+      // Redirect to login page
+      router.push('/login');
+      router.refresh(); // Ensure server components update
+    } catch (error) {
+      console.error('Logout failed', error);
+      showToast("Logout failed", "info");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
@@ -817,6 +835,15 @@ export default function EmployerDashboardPage() {
           <div className="pt-4 mt-4 border-t border-slate-100">
             <NavItem id="learning" label="Learning Hub" icon={BookOpen} />
           </div>
+          <div className="p-4 border-t border-slate-100">
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <LogOut size={20} strokeWidth={2.5} />
+            Log Out
+          </button>
+        </div>
         </nav>
       </aside>
 
