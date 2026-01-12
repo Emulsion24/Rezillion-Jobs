@@ -9,11 +9,15 @@ export async function createSession(userId: number, role: string) {
     .setExpirationTime('2h')
     .sign(secret);
 
+  // We still try to set it here for normal cases
   (await cookies()).set('session_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7200, // 2 hours
+        sameSite: 'lax', // CHANGED FROM 'strict' TO 'lax' FOR GOOGLE LOGIN
+        maxAge: 7200, 
         path: '/',
     });
+
+  // IMPORTANT: Return the token so we can attach it to redirects manually
+  return token; 
 }

@@ -54,14 +54,11 @@ export async function POST(request: Request) {
     
     return NextResponse.json({ success: true, redirectUrl });
 
-  } catch (error: any) {
-    // CRITICAL: This log will appear in Vercel "Functions" logs
-    console.error("🔥 LOGIN API CRASHED:", error);
-    
-    // Return the actual error message temporarily so you can see it in the browser console response
+  } catch (error) {
+  
     return NextResponse.json({ 
       error: "Server Error", 
-      details: error.message 
+
     }, { status: 500 });
   }
 }
