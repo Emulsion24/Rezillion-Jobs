@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback/google`;
+  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`;
 
   // 3. Construct URL parameters securely
   // URLSearchParams automatically encodes spaces and special characters
