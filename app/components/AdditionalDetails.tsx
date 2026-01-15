@@ -1,14 +1,86 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Lightbulb, Info, User, CheckCircle2, Plus, Trash2, Heart, Trophy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Lightbulb, Info, User, CheckCircle2, Plus, Trash2, Heart, Trophy, Loader2 } from 'lucide-react';
+import { useUserStore } from '@/store/userStore'; // Import Zustand
 
 export const AdditionalDetails = () => {
-  const [hobbies, setHobbies] = useState<string[]>([""]);
-  // New state for multiple achievements
-  const [achievements, setAchievements] = useState<string[]>([""]);
+  const user = useUserStore((state) => state.user);
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // Hobby Logic
+  // --- States ---
+  const [hobbies, setHobbies] = useState<string[]>([""]);
+  const [achievements, setAchievements] = useState<string[]>([""]);
+  const [greenEnergyReason, setGreenEnergyReason] = useState("");
+  const [additionalInfo, setAdditionalInfo] = useState("");
+  const [declarationName, setDeclarationName] = useState("");
+
+  // --- 1. Fetch Data ---
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`/api/dashboard/profile?userId=${user.id}`);
+        const data = await res.json();
+
+        if (res.ok) {
+          if (data.hobbies?.length) setHobbies(data.hobbies);
+          if (data.achievements?.length) setAchievements(data.achievements);
+          if (data.green_energy_reason) setGreenEnergyReason(data.green_energy_reason);
+          if (data.additional_info) setAdditionalInfo(data.additional_info);
+          if (data.declaration_name) setDeclarationName(data.declaration_name);
+        }
+      } catch (error) {
+        console.error("Error loading additional details", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?.id]);
+
+  // --- 2. Save Data ---
+  const handleSubmit = async () => {
+    if (!user?.id) return alert("Please log in.");
+    if (!declarationName.trim()) return alert("Please sign the declaration.");
+
+    setSaving(true);
+    try {
+      // Filter out empty strings before saving
+      const cleanHobbies = hobbies.filter(h => h.trim() !== "");
+      const cleanAchievements = achievements.filter(a => a.trim() !== "");
+
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          hobbies: cleanHobbies,
+          achievements: cleanAchievements,
+          greenEnergyReason,
+          additionalInfo,
+          declarationName
+        })
+      });
+
+      if (res.ok) {
+        alert("Profile submitted successfully!");
+      } else {
+        alert("Failed to submit profile.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Server error.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // --- Logic Helpers ---
   const addHobby = () => setHobbies([...hobbies, ""]);
   const updateHobby = (index: number, value: string) => {
     const newHobbies = [...hobbies];
@@ -17,7 +89,6 @@ export const AdditionalDetails = () => {
   };
   const removeHobby = (index: number) => setHobbies(hobbies.filter((_, i) => i !== index));
 
-  // Achievement Logic
   const addAchievement = () => setAchievements([...achievements, ""]);
   const updateAchievement = (index: number, value: string) => {
     const newArr = [...achievements];
@@ -25,6 +96,8 @@ export const AdditionalDetails = () => {
     setAchievements(newArr);
   };
   const removeAchievement = (index: number) => setAchievements(achievements.filter((_, i) => i !== index));
+
+  if (loading) return <div className="p-8 flex justify-center text-slate-500 font-bold"><Loader2 className="animate-spin mr-2"/> Loading details...</div>;
 
   return (
     <section className="bg-white text-slate-900 rounded-2xl p-8 shadow-sm border border-slate-200 mb-12">
@@ -36,7 +109,7 @@ export const AdditionalDetails = () => {
 
       <div className="space-y-12">
         
-        {/* 1. Hobbies Row Logic */}
+        {/* 1. Hobbies */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 border-l-4 border-blue-500 pl-3">
             <Heart size={18} className="text-blue-500" />
@@ -53,26 +126,20 @@ export const AdditionalDetails = () => {
                   placeholder="e.g. Photography, Trekking" 
                   className="flex-1 bg-slate-50 border border-slate-300 p-3 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
                 />
-                {hobbies.length > 1 && (
-                  <button 
-                    onClick={() => removeHobby(idx)}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  >
+                {hobbies.length > 0 && (
+                  <button onClick={() => removeHobby(idx)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 size={18} />
                   </button>
                 )}
               </div>
             ))}
           </div>
-          <button 
-            onClick={addHobby}
-            className="flex items-center gap-2 text-blue-600 font-bold text-xs hover:underline mt-2"
-          >
+          <button onClick={addHobby} className="flex items-center gap-2 text-blue-600 font-bold text-xs hover:underline mt-2">
             <Plus size={16} className="bg-blue-100 rounded-full" /> Add another hobby
           </button>
         </div>
 
-        {/* 2. Achievements Row Logic (Updated) */}
+        {/* 2. Achievements */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 border-l-4 border-blue-500 pl-3">
             <Trophy size={18} className="text-blue-500" />
@@ -92,21 +159,15 @@ export const AdditionalDetails = () => {
                     className="w-full bg-slate-50 border border-slate-300 p-3 pl-11 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-500 transition-all"
                   />
                 </div>
-                {achievements.length > 1 && (
-                  <button 
-                    onClick={() => removeAchievement(idx)}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  >
+                {achievements.length > 0 && (
+                  <button onClick={() => removeAchievement(idx)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 size={18} />
                   </button>
                 )}
               </div>
             ))}
           </div>
-          <button 
-            onClick={addAchievement}
-            className="flex items-center gap-2 text-blue-600 font-bold text-xs hover:underline mt-2"
-          >
+          <button onClick={addAchievement} className="flex items-center gap-2 text-blue-600 font-bold text-xs hover:underline mt-2">
             <Plus size={16} className="bg-blue-100 rounded-full" /> Add another achievement
           </button>
         </div>
@@ -119,6 +180,8 @@ export const AdditionalDetails = () => {
               Why do you want to work in the Green Energy Sector?
             </label>
             <textarea 
+              value={greenEnergyReason}
+              onChange={(e) => setGreenEnergyReason(e.target.value)}
               placeholder="Your answer here..." 
               className="w-full bg-slate-50 border border-slate-300 p-4 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-500 min-h-[80px]"
             />
@@ -132,6 +195,8 @@ export const AdditionalDetails = () => {
             <div className="relative">
               <Info size={18} className="absolute left-4 top-4 text-blue-500" />
               <textarea 
+                value={additionalInfo}
+                onChange={(e) => setAdditionalInfo(e.target.value)}
                 placeholder="Additional information..." 
                 className="w-full bg-slate-50 border border-slate-300 p-4 pl-12 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-500 min-h-[80px]"
               />
@@ -151,14 +216,20 @@ export const AdditionalDetails = () => {
                 <User size={16} className="absolute left-3 top-3 text-slate-400" />
                 <input 
                   type="text" 
+                  value={declarationName}
+                  onChange={(e) => setDeclarationName(e.target.value)}
                   placeholder="Full Name (Signature)" 
                   className="w-full bg-white border border-slate-300 p-2.5 pl-10 rounded-lg text-sm font-black text-slate-900 placeholder:text-slate-400 outline-none focus:border-blue-500"
                 />
               </div>
             </div>
 
-            <button className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-black text-lg tracking-wide transition-all shadow-lg shadow-blue-200 active:scale-95">
-              SUBMIT PROFILE <CheckCircle2 size={24} />
+            <button 
+              onClick={handleSubmit}
+              disabled={saving}
+              className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-black text-lg tracking-wide transition-all shadow-lg shadow-blue-200 active:scale-95 disabled:opacity-70 disabled:scale-100"
+            >
+              {saving ? <Loader2 className="animate-spin" /> : <>SUBMIT PROFILE <CheckCircle2 size={24} /></>}
             </button>
           </div>
         </div>

@@ -5,16 +5,18 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Mail, Lock, Loader2, Briefcase, User, Eye, EyeOff, 
+  Mail, Lock, Loader2, Briefcase, User as UserIcon, Eye, EyeOff, 
   AlertTriangle, Chrome 
 } from 'lucide-react';
+import { useUserStore, User } from '@/store/userStore'; // Import Store & Type
 
 // 1. Strict Type Definitions
 type UserRole = 'candidate' | 'employer' | 'admin';
 
-// Define what the API returns
+// 2. Define API Response Types Strictly
 interface LoginSuccessResponse {
   redirectUrl: string;
+  user: User; // Uses the strict User interface from the store
 }
 
 interface ApiErrorResponse {
@@ -25,52 +27,68 @@ interface GoogleAuthResponse {
   url?: string;
 }
 
+// Type Guard to check if response is an error
+function isErrorResponse(data: unknown): data is ApiErrorResponse {
+  return (data as ApiErrorResponse).error !== undefined;
+}
+
 export default function LoginPage() {
   const router = useRouter();
+  
+  // --- ZUSTAND: Get the login action ---
+  const loginToStore = useUserStore((state) => state.login);
+  // -------------------------------------
+
   const [isLoading, setIsLoading] = useState(false);
-  const [role, setRole] = useState<UserRole>('candidate'); // Default to Talent
+  const [role, setRole] = useState<UserRole>('candidate'); 
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({ email: '', password: '' });
 
-  // 1. Handle Normal Email/Pass Login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
     try {
-      const res = await fetch('/api/auth/login', {
+      // KEEPING ROUTE EXACTLY AS REQUESTED
+      const res = await fetch('/api/auth/login', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
-          role: role // 'candidate' or 'employer'
+          role: role
         }),
       });
 
-      // Securely cast the response
-      const data = (await res.json()) as LoginSuccessResponse | ApiErrorResponse;
+      const data = await res.json();
 
       if (!res.ok) {
-        // Type narrowing: check if 'error' exists in data
-        if ('error' in data) {
+        if (isErrorResponse(data)) {
           throw new Error(data.error);
         } else {
           throw new Error('Invalid credentials');
         }
       }
 
-      // Success: Redirect
-      if ('redirectUrl' in data) {
-        router.push(data.redirectUrl);
+      // Success: Cast data to SuccessResponse safely
+      const successData = data as LoginSuccessResponse;
+
+      if (successData.redirectUrl) {
+        
+        // --- ZUSTAND: Save user to store ---
+        if (successData.user) {
+            loginToStore(successData.user); 
+        }
+        // -----------------------------------
+
+        router.push(successData.redirectUrl);
         router.refresh();
       }
 
     } catch (err: unknown) {
-      // Strict error handling
       if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -80,7 +98,6 @@ export default function LoginPage() {
     }
   };
 
-  // 2. Handle Google Login
   const handleGoogleLogin = async () => {
     setError(null);
     try {
@@ -88,7 +105,7 @@ export default function LoginPage() {
       const data = (await res.json()) as GoogleAuthResponse;
       
       if (data.url) {
-        window.location.href = data.url; // Redirect user to Google
+        window.location.href = data.url; 
       } else {
         setError("Failed to initialize Google Login");
       }
@@ -97,7 +114,6 @@ export default function LoginPage() {
     }
   };
 
-  // Helper for dynamic colors
   const getThemeColor = () => {
     if (role === 'employer') return 'text-slate-900 bg-slate-900 shadow-slate-200 hover:bg-slate-800';
     return 'text-indigo-600 bg-indigo-600 shadow-indigo-200 hover:bg-indigo-700';
@@ -111,7 +127,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] px-4 font-sans text-slate-900">
       
-      {/* Background Decor */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
          <div className="absolute top-0 left-0 w-full h-full bg-slate-50"></div>
          {role === 'employer' && <div className="absolute bottom-0 left-0 w-[50%] h-[50%] bg-blue-100/30 blur-[120px] transition-all duration-700" />}
@@ -123,7 +138,6 @@ export default function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         className="relative z-10 max-w-[440px] w-full bg-white p-8 md:p-10 rounded-3xl shadow-[0_20px_70px_-10px_rgba(0,0,0,0.06)] border border-white/50"
       >
-        {/* Role Switcher (2 Tabs: Candidate & Employer) */}
         <div className="flex bg-slate-100/80 p-1.5 rounded-2xl mb-8 relative">
           <motion.div
             layout
@@ -138,7 +152,7 @@ export default function LoginPage() {
             onClick={() => setRole('candidate')}
             className={`relative flex-1 z-10 flex items-center justify-center gap-2 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${role === 'candidate' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
           >
-            <User size={14} strokeWidth={2.5} /> Talent
+            <UserIcon size={14} strokeWidth={2.5} /> Talent
           </button>
           <button
             type="button"
@@ -158,7 +172,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Error Message */}
         <AnimatePresence>
           {error && (
             <motion.div 
@@ -175,7 +188,6 @@ export default function LoginPage() {
           )}
         </AnimatePresence>
 
-        {/* Google Login Button */}
         <button 
           type="button"
           onClick={handleGoogleLogin}
@@ -190,7 +202,6 @@ export default function LoginPage() {
           <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-4 text-slate-400 font-bold tracking-widest">Or email</span></div>
         </div>
 
-        {/* Email Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Email</label>
