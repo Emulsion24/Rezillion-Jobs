@@ -9,12 +9,13 @@ interface ProfileRequestBody {
   experiences?: unknown[];
   languages?: unknown[];
   certificates?: unknown[];
-  experienceDetails?: unknown[]; // Matches frontend key
+  experienceDetails?: unknown[]; 
   hobbies?: string[];
   achievements?: string[];
   greenEnergyReason?: string;
   additionalInfo?: string;
   declarationName?: string;
+  technicalSkills?: unknown; // Added: Stores the role-specific structure
 }
 
 // GET: Load COMPLETE Profile Data
@@ -41,7 +42,9 @@ export async function GET(request: Request) {
         c.achievements,
         c.green_energy_reason,
         c.additional_info,
-        c.declaration_name
+        c.declaration_name,
+        -- Technical Skills (New)
+        c.technical_skills
       FROM users u
       LEFT JOIN candidates c ON u.id = c.user_id
       WHERE u.id = $1
@@ -66,7 +69,9 @@ export async function GET(request: Request) {
       achievements: data.achievements || [],
       green_energy_reason: data.green_energy_reason || '',
       additional_info: data.additional_info || '',
-      declaration_name: data.declaration_name || ''
+      declaration_name: data.declaration_name || '',
+      // Technical
+      technicalSkills: data.technical_skills || null 
     });
 
   } catch (error) {
@@ -85,16 +90,17 @@ export async function POST(request: Request) {
       userId, 
       fullName, qualifications, experiences, languages,
       certificates, experienceDetails,
-      hobbies, achievements, greenEnergyReason, additionalInfo, declarationName
+      hobbies, achievements, greenEnergyReason, additionalInfo, declarationName,
+      technicalSkills // Added
     } = body;
 
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Helper: Safely convert input to JSON string or null (Strictly Typed)
+    // Helper: Safely convert input to JSON string or null
     const getJson = (val: unknown | undefined): string | null => 
       val ? JSON.stringify(val) : null;
 
-    // Helper: Safely get string value or null (Strictly Typed)
+    // Helper: Safely get string value or null
     const getVal = (val: string | undefined): string | null => 
       val !== undefined ? val : null;
 
@@ -103,9 +109,10 @@ export async function POST(request: Request) {
         user_id, 
         full_name, qualifications, experiences, languages,
         certificates, experience_details,
-        hobbies, achievements, green_energy_reason, additional_info, declaration_name
+        hobbies, achievements, green_energy_reason, additional_info, declaration_name,
+        technical_skills
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       ON CONFLICT (user_id) 
       DO UPDATE SET 
         full_name = COALESCE(EXCLUDED.full_name, candidates.full_name),
@@ -120,7 +127,9 @@ export async function POST(request: Request) {
         achievements = COALESCE(EXCLUDED.achievements, candidates.achievements),
         green_energy_reason = COALESCE(EXCLUDED.green_energy_reason, candidates.green_energy_reason),
         additional_info = COALESCE(EXCLUDED.additional_info, candidates.additional_info),
-        declaration_name = COALESCE(EXCLUDED.declaration_name, candidates.declaration_name);
+        declaration_name = COALESCE(EXCLUDED.declaration_name, candidates.declaration_name),
+        
+        technical_skills = COALESCE(EXCLUDED.technical_skills, candidates.technical_skills);
     `;
 
     await db.query(query, [
@@ -135,7 +144,8 @@ export async function POST(request: Request) {
       getJson(achievements),
       getVal(greenEnergyReason),
       getVal(additionalInfo),
-      getVal(declarationName)
+      getVal(declarationName),
+      getJson(technicalSkills) // Added ($13)
     ]);
 
     if (fullName) {

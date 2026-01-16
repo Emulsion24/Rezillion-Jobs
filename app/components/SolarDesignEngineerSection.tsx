@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings, 
   Trash2, 
@@ -14,29 +14,31 @@ import {
   ChevronRight,
   Plus,
   X,
-  Zap,         // Added for Electrical/Substation
-  PenTool,     // Added for Mechanical Design
-  TrendingUp,  // Added for Finance
-  HardHat      // Added for Site/Safety
+  Zap,         
+  PenTool,     
+  TrendingUp,  
+  HardHat,
+  Save,       
+  Loader2     
 } from 'lucide-react';
+import { useUserStore } from '@/store/userStore';
 
 // --- Types ---
-// Updated to include new roles
 type RoleKey = 
   | "design" 
   | "om" 
   | "project" 
-  | "electrical" // Existing Technician
-  | "mechanical" // Existing Technician
-  | "mech_eng"   // NEW
-  | "elec_eng"   // NEW
-  | "substation" // NEW
-  | "finance";   // NEW
+  | "electrical" 
+  | "mechanical" 
+  | "mech_eng"   
+  | "elec_eng"   
+  | "substation" 
+  | "finance";   
 
 type ViewState = "root" | "pv_subroles" | "form";
 
 interface RowItem {
-  id: string; // Unique ID for React Keys
+  id: string; 
   name: string;
   proficiency: string;
   experienceRef: string[];
@@ -56,23 +58,20 @@ interface RoleStructure {
   sections: SectionData[];
 }
 
-// --- MOCK DATA ---
-const UPLOADED_DOCS = {
-  experiences: [
-    { id: "E1", label: "E1 - Junior Solar Eng (2020-2021)" },
-    { id: "E2", label: "E2 - Senior Analyst (2022-Present)" },
-    { id: "E3", label: "E3 - Internship (2019)" }
-  ],
-  certificates: [
-    { id: "C1", label: "C1 - PVsyst Certified Professional" },
-    { id: "C2", label: "C2 - AutoCAD Associate" },
-    { id: "C3", label: "C3 - PMP Certification" }
-  ]
-};
+// Structure saved to DB
+interface SavedTechnicalData {
+  roleId: RoleKey;
+  sections: SectionData[];
+}
+
+interface DropdownOption {
+  id: string;
+  label: string;
+}
 
 // --- Helper: Create Row with Unique ID ---
 const createRow = (name: string = ""): RowItem => ({
-  id: Math.random().toString(36).substr(2, 9),
+  id: Math.random().toString(36).substring(2, 9),
   name,
   proficiency: "Beginner",
   experienceRef: [],
@@ -81,88 +80,18 @@ const createRow = (name: string = ""): RowItem => ({
 
 // --- CONSTANT DATA STRUCTURE ---
 const ROLES_DB: Record<RoleKey, RoleStructure> = {
-  // --- EXISTING PV ROLES ---
   design: {
     id: "design",
     label: "Solar Design Engineer",
     description: "Yield Assessment, Layout, Electrical Design & Economics",
     sections: [
-      {
-        title: "1. Yield Assessment",
-        tools: [
-          createRow("PVsyst"),
-          createRow("SAM (System Advisor Model)"),
-          createRow("Solarfarmer by DNV"),
-          createRow("PlantPredict"),
-          createRow("PVlib")
-        ],
-        domain: [
-          createRow("Estimate annual energy generation"),
-          createRow("Calculate CUF / PR / losses / clipping"),
-          createRow("Compare scenarios, optimize yield vs cost")
-        ]
-      },
-      {
-        title: "2. Solar Resource Data Handling",
-        tools: [
-          createRow("Solargis"),
-          createRow("Solcast"),
-          createRow("NSRDB"),
-          createRow("NREL Tools"),
-          createRow("PVGIS"),
-          createRow("CAMS")
-        ],
-        domain: [
-          createRow("Validate data quality and representativity"),
-          createRow("Ground measured data handling / cleaning"),
-          createRow("Understanding of GHI, DNI, DHI, transposition")
-        ]
-      },
-      {
-        title: "3. Layout and Power Plant Design",
-        tools: [createRow("AutoCAD"), createRow("SketchUp"), createRow("PVcase")],
-        domain: [
-          createRow("DC design: module config, tilt, orientation, spacing"),
-          createRow("AC design: inverter sizing, grid, transformer, cabling"),
-          createRow("Layout, SLD, stringing, BOS design"),
-          createRow("Structural + wind load considerations")
-        ]
-      },
-      {
-        title: "4. Standards, Safety & Compliance",
-        tools: [],
-        domain: [
-          createRow("Follow IEC / IS / IEEE / NEC / utility norms"),
-          createRow("Earthing, lightning, protection coordination"),
-          createRow("Net-metering / grid approval documentation")
-        ]
-      },
-      {
-        title: "5. Techno-Economic Evaluation",
-        tools: [],
-        domain: [
-          createRow("Prepare BoM (Bill of Materials)"),
-          createRow("Evaluate Capex vs performance"),
-          createRow("Support LCOE / payback / financial assessment")
-        ]
-      },
-      {
-        title: "6. Execution Support & Documentation",
-        tools: [],
-        domain: [
-          createRow("Issue-for-construction drawings"),
-          createRow("Coordination with EPC/site team"),
-          createRow("As-built updates, revisions, clarifications")
-        ]
-      },
-      {
-        title: "7. Performance & O&M",
-        tools: [],
-        domain: [
-          createRow("Commissioning support"),
-          createRow("Performance monitoring & troubleshooting")
-        ]
-      }
+      { title: "1. Yield Assessment", tools: [createRow("PVsyst"), createRow("SAM (System Advisor Model)"), createRow("Solarfarmer by DNV"), createRow("PlantPredict"), createRow("PVlib")], domain: [createRow("Estimate annual energy generation"), createRow("Calculate CUF / PR / losses / clipping"), createRow("Compare scenarios, optimize yield vs cost")] },
+      { title: "2. Solar Resource Data Handling", tools: [createRow("Solargis"), createRow("Solcast"), createRow("NSRDB"), createRow("NREL Tools"), createRow("PVGIS"), createRow("CAMS")], domain: [createRow("Validate data quality and representativity"), createRow("Ground measured data handling / cleaning"), createRow("Understanding of GHI, DNI, DHI, transposition")] },
+      { title: "3. Layout and Power Plant Design", tools: [createRow("AutoCAD"), createRow("SketchUp"), createRow("PVcase")], domain: [createRow("DC design: module config, tilt, orientation, spacing"), createRow("AC design: inverter sizing, grid, transformer, cabling"), createRow("Layout, SLD, stringing, BOS design"), createRow("Structural + wind load considerations")] },
+      { title: "4. Standards, Safety & Compliance", tools: [], domain: [createRow("Follow IEC / IS / IEEE / NEC / utility norms"), createRow("Earthing, lightning, protection coordination"), createRow("Net-metering / grid approval documentation")] },
+      { title: "5. Techno-Economic Evaluation", tools: [], domain: [createRow("Prepare BoM (Bill of Materials)"), createRow("Evaluate Capex vs performance"), createRow("Support LCOE / payback / financial assessment")] },
+      { title: "6. Execution Support & Documentation", tools: [], domain: [createRow("Issue-for-construction drawings"), createRow("Coordination with EPC/site team"), createRow("As-built updates, revisions, clarifications")] },
+      { title: "7. Performance & O&M", tools: [], domain: [createRow("Commissioning support"), createRow("Performance monitoring & troubleshooting")] }
     ]
   },
   om: {
@@ -170,56 +99,11 @@ const ROLES_DB: Record<RoleKey, RoleStructure> = {
     label: "Solar Commissioning & O&M Engineer",
     description: "Testing, SCADA, Maintenance & Safety",
     sections: [
-      {
-        title: "1. Commissioning & Testing",
-        tools: [
-          createRow("I-V Curve Tester"),
-          createRow("IR Camera"),
-          createRow("Multimeter / Megger / Clamp Meter")
-        ],
-        domain: [
-          createRow("String & insulation testing"),
-          createRow("Inverter / transformer commissioning"),
-          createRow("Grid synchronization & PR verification")
-        ]
-      },
-      {
-        title: "2. Monitoring & SCADA",
-        tools: [
-          createRow("Plant SCADA"),
-          createRow("OEM / 3rd party monitoring portals")
-        ],
-        domain: [
-          createRow("Alarm handling & fault analysis"),
-          createRow("Data validation & performance tracking")
-        ]
-      },
-      {
-        title: "3. Preventive & Corrective Maintenance",
-        tools: [createRow("PVsyst Report Understanding")],
-        domain: [
-          createRow("Scheduled maintenance planning"),
-          createRow("Fault detection & rectification (DC & AC)"),
-          createRow("Component replacement & verification testing")
-        ]
-      },
-      {
-        title: "4. Safety & Compliance",
-        tools: [],
-        domain: [
-          createRow("Standards compliance IEC / IS / NEC"),
-          createRow("Earthing, lightning & electrical safety")
-        ]
-      },
-      {
-        title: "5. Documentation & Reporting",
-        tools: [],
-        domain: [
-          createRow("Commissioning reports"),
-          createRow("Maintenance logs"),
-          createRow("Performance improvement recommendations")
-        ]
-      }
+      { title: "1. Commissioning & Testing", tools: [createRow("I-V Curve Tester"), createRow("IR Camera"), createRow("Multimeter / Megger / Clamp Meter")], domain: [createRow("String & insulation testing"), createRow("Inverter / transformer commissioning"), createRow("Grid synchronization & PR verification")] },
+      { title: "2. Monitoring & SCADA", tools: [createRow("Plant SCADA"), createRow("OEM / 3rd party monitoring portals")], domain: [createRow("Alarm handling & fault analysis"), createRow("Data validation & performance tracking")] },
+      { title: "3. Preventive & Corrective Maintenance", tools: [createRow("PVsyst Report Understanding")], domain: [createRow("Scheduled maintenance planning"), createRow("Fault detection & rectification (DC & AC)"), createRow("Component replacement & verification testing")] },
+      { title: "4. Safety & Compliance", tools: [], domain: [createRow("Standards compliance IEC / IS / NEC"), createRow("Earthing, lightning & electrical safety")] },
+      { title: "5. Documentation & Reporting", tools: [], domain: [createRow("Commissioning reports"), createRow("Maintenance logs"), createRow("Performance improvement recommendations")] }
     ]
   },
   project: {
@@ -227,96 +111,22 @@ const ROLES_DB: Record<RoleKey, RoleStructure> = {
     label: "Solar Project Planning / QA Engineer",
     description: "Scheduling, Procurement, Quality & Compliance",
     sections: [
-      {
-        title: "1. Project Planning & Scheduling",
-        tools: [createRow("MS Project / Primavera"), createRow("Excel planning templates")],
-        domain: [
-          createRow("Project execution plan & timelines"),
-          createRow("WBS, milestones & progress tracking")
-        ]
-      },
-      {
-        title: "2. Material & Resource Planning",
-        tools: [],
-        domain: [
-          createRow("Procurement planning & delivery tracking"),
-          createRow("Inventory & logistics coordination")
-        ]
-      },
-      {
-        title: "3. QA / QC Implementation",
-        tools: [],
-        domain: [
-          createRow("QA/QC plan execution"),
-          createRow("Material & workmanship inspections")
-        ]
-      },
-      {
-        title: "4. Standards & Compliance",
-        tools: [],
-        domain: [
-          createRow("IEC / IS / NEC / utility norms"),
-          createRow("HSE integration with quality")
-        ]
-      },
-      {
-        title: "5. Documentation & Coordination",
-        tools: [],
-        domain: [
-          createRow("Progress & QA reporting"),
-          createRow("Audit support"),
-          createRow("Cross-team coordination")
-        ]
-      }
+      { title: "1. Project Planning & Scheduling", tools: [createRow("MS Project / Primavera"), createRow("Excel planning templates")], domain: [createRow("Project execution plan & timelines"), createRow("WBS, milestones & progress tracking")] },
+      { title: "2. Material & Resource Planning", tools: [], domain: [createRow("Procurement planning & delivery tracking"), createRow("Inventory & logistics coordination")] },
+      { title: "3. QA / QC Implementation", tools: [], domain: [createRow("QA/QC plan execution"), createRow("Material & workmanship inspections")] },
+      { title: "4. Standards & Compliance", tools: [], domain: [createRow("IEC / IS / NEC / utility norms"), createRow("HSE integration with quality")] },
+      { title: "5. Documentation & Coordination", tools: [], domain: [createRow("Progress & QA reporting"), createRow("Audit support"), createRow("Cross-team coordination")] }
     ]
   },
-
-  // --- NEW ADDED ROLES (ENGINEERING) ---
   mech_eng: {
     id: "mech_eng",
     label: "Mechanical Engineer (Solar)",
     description: "Structural Design, Mounting Systems & Site Oversight",
     sections: [
-      {
-        title: "1. Structural Design and Mounting Systems",
-        tools: [
-          createRow("AutoCAD"),
-          createRow("STAAD Pro"),
-          createRow("PVsyst")
-        ],
-        domain: [
-          createRow("Design racking, foundations, and support structures"),
-          createRow("Load analysis (wind, snow, seismic) for solar mounts"),
-          createRow("Develop cost-effective mounting solutions")
-        ]
-      },
-      {
-        title: "2. Project Execution and Site Oversight",
-        tools: [],
-        domain: [
-          createRow("Supervise fabrication, assembly, and installation"),
-          createRow("Coordinate with EPC teams for commissioning"),
-          createRow("Hands-on experience with fabrication & welding")
-        ]
-      },
-      {
-        title: "3. Quality Control and Maintenance",
-        tools: [],
-        domain: [
-          createRow("Perform inspections and troubleshoot mechanical issues"),
-          createRow("Optimize systems for performance"),
-          createRow("Ensure durability against environmental loads")
-        ]
-      },
-      {
-        title: "4. Innovation and Material Selection",
-        tools: [],
-        domain: [
-          createRow("Focus on corrosion resistance and efficiency"),
-          createRow("Develop solutions for hybrid systems/enclosures"),
-          createRow("Knowledge of standards (IS, IEC) & civil integration")
-        ]
-      }
+      { title: "1. Structural Design and Mounting Systems", tools: [createRow("AutoCAD"), createRow("STAAD Pro"), createRow("PVsyst")], domain: [createRow("Design racking, foundations, and support structures"), createRow("Load analysis (wind, snow, seismic) for solar mounts"), createRow("Develop cost-effective mounting solutions")] },
+      { title: "2. Project Execution and Site Oversight", tools: [], domain: [createRow("Supervise fabrication, assembly, and installation"), createRow("Coordinate with EPC teams for commissioning"), createRow("Hands-on experience with fabrication & welding")] },
+      { title: "3. Quality Control and Maintenance", tools: [], domain: [createRow("Perform inspections and troubleshoot mechanical issues"), createRow("Optimize systems for performance"), createRow("Ensure durability against environmental loads")] },
+      { title: "4. Innovation and Material Selection", tools: [], domain: [createRow("Focus on corrosion resistance and efficiency"), createRow("Develop solutions for hybrid systems/enclosures"), createRow("Knowledge of standards (IS, IEC) & civil integration")] }
     ]
   },
   elec_eng: {
@@ -324,47 +134,10 @@ const ROLES_DB: Record<RoleKey, RoleStructure> = {
     label: "Electrical Engineer (Solar)",
     description: "System Design, Grid Integration & Power Electronics",
     sections: [
-      {
-        title: "1. System Design and Integration",
-        tools: [
-          createRow("PVsyst"),
-          createRow("ETAP"),
-          createRow("MATLAB/Simulink"),
-          createRow("AutoCAD Electrical")
-        ],
-        domain: [
-          createRow("Engineer electrical layouts (inverters, cabling, grid)"),
-          createRow("Expertise in AC/DC systems & power electronics"),
-          createRow("Design schematics and circuit layouts")
-        ]
-      },
-      {
-        title: "2. Grid Interconnection and Optimization",
-        tools: [],
-        domain: [
-          createRow("Handle net metering & BESS integration"),
-          createRow("Performance monitoring for efficient energy flow"),
-          createRow("Compliance with codes (NEC, IEC, Indian Rules)")
-        ]
-      },
-      {
-        title: "3. Installation and Commissioning",
-        tools: [],
-        domain: [
-          createRow("Oversee wiring, testing, and startup of Arrays"),
-          createRow("Ensure compliance in MW-scale or rooftop projects"),
-          createRow("Coordination with mechanical/civil teams")
-        ]
-      },
-      {
-        title: "4. Troubleshooting and Maintenance",
-        tools: [],
-        domain: [
-          createRow("Diagnose faults and upgrade systems"),
-          createRow("Manage O&M for long-term reliability"),
-          createRow("Data analytics for yield prediction & fault detection")
-        ]
-      }
+      { title: "1. System Design and Integration", tools: [createRow("PVsyst"), createRow("ETAP"), createRow("MATLAB/Simulink"), createRow("AutoCAD Electrical")], domain: [createRow("Engineer electrical layouts (inverters, cabling, grid)"), createRow("Expertise in AC/DC systems & power electronics"), createRow("Design schematics and circuit layouts")] },
+      { title: "2. Grid Interconnection and Optimization", tools: [], domain: [createRow("Handle net metering & BESS integration"), createRow("Performance monitoring for efficient energy flow"), createRow("Compliance with codes (NEC, IEC, Indian Rules)")] },
+      { title: "3. Installation and Commissioning", tools: [], domain: [createRow("Oversee wiring, testing, and startup of Arrays"), createRow("Ensure compliance in MW-scale or rooftop projects"), createRow("Coordination with mechanical/civil teams")] },
+      { title: "4. Troubleshooting and Maintenance", tools: [], domain: [createRow("Diagnose faults and upgrade systems"), createRow("Manage O&M for long-term reliability"), createRow("Data analytics for yield prediction & fault detection")] }
     ]
   },
   substation: {
@@ -372,47 +145,10 @@ const ROLES_DB: Record<RoleKey, RoleStructure> = {
     label: "Substation Engineer",
     description: "High-Voltage Design, Grid Protection & SCADA",
     sections: [
-      {
-        title: "1. Substation Design and Construction",
-        tools: [
-          createRow("ETAP"),
-          createRow("PSCAD"),
-          createRow("AutoCAD"),
-          createRow("DigSILENT PowerFactory")
-        ],
-        domain: [
-          createRow("Develop high-voltage substations & switchgear"),
-          createRow("Transformer and stepping up power design"),
-          createRow("Layout and electrical drawings")
-        ]
-      },
-      {
-        title: "2. Grid Integration and Protection",
-        tools: [],
-        domain: [
-          createRow("Implement relays, SCADA, and protection systems"),
-          createRow("Expertise in protection devices (relays, breakers)"),
-          createRow("Risk management for intermittency and overloads")
-        ]
-      },
-      {
-        title: "3. Commissioning and Testing",
-        tools: [],
-        domain: [
-          createRow("Oversee buildup, inspections, and grid synchronization"),
-          createRow("Transient simulations for stability"),
-          createRow("Regulatory compliance")
-        ]
-      },
-      {
-        title: "4. Operations and Upgrades",
-        tools: [],
-        domain: [
-          createRow("Monitor performance and analyze faults"),
-          createRow("Expand substations for growing solar capacities"),
-          createRow("Leadership in EPC teams for budgeting")
-        ]
-      }
+      { title: "1. Substation Design and Construction", tools: [createRow("ETAP"), createRow("PSCAD"), createRow("AutoCAD"), createRow("DigSILENT PowerFactory")], domain: [createRow("Develop high-voltage substations & switchgear"), createRow("Transformer and stepping up power design"), createRow("Layout and electrical drawings")] },
+      { title: "2. Grid Integration and Protection", tools: [], domain: [createRow("Implement relays, SCADA, and protection systems"), createRow("Expertise in protection devices (relays, breakers)"), createRow("Risk management for intermittency and overloads")] },
+      { title: "3. Commissioning and Testing", tools: [], domain: [createRow("Oversee buildup, inspections, and grid synchronization"), createRow("Transient simulations for stability"), createRow("Regulatory compliance")] },
+      { title: "4. Operations and Upgrades", tools: [], domain: [createRow("Monitor performance and analyze faults"), createRow("Expand substations for growing solar capacities"), createRow("Leadership in EPC teams for budgeting")] }
     ]
   },
   finance: {
@@ -420,97 +156,21 @@ const ROLES_DB: Record<RoleKey, RoleStructure> = {
     label: "Finance Professional (Solar)",
     description: "Project Finance, Modeling, Budgeting & Compliance",
     sections: [
-      {
-        title: "1. Financial Modeling and Analysis",
-        tools: [
-          createRow("Microsoft Excel"),
-          createRow("PVsyst (financial modules)"),
-          createRow("Python for finance")
-        ],
-        domain: [
-          createRow("Build financial models (CAPEX/OPEX, IRR, Payback)"),
-          createRow("Sensitivity analysis for MW-scale/Rooftop"),
-          createRow("Yield and revenue forecasting integration")
-        ]
-      },
-      {
-        title: "2. Project Finance and Funding",
-        tools: [],
-        domain: [
-          createRow("Structure debt/equity financing"),
-          createRow("Negotiate with banks, NBFCs, and investors"),
-          createRow("Valuation in renewables")
-        ]
-      },
-      {
-        title: "3. Budgeting, Cost Control, and Reporting",
-        tools: [
-          createRow("Power BI/Tableau"),
-          createRow("Tally/MS Dynamics NAV")
-        ],
-        domain: [
-          createRow("Prepare project budgets & track cash flows"),
-          createRow("Generate MIS reports for management"),
-          createRow("Analytical skills for cost optimization")
-        ]
-      },
-      {
-        title: "4. Accounting, Compliance, and Taxation",
-        tools: [],
-        domain: [
-          createRow("GST/income tax compliance & audits"),
-          createRow("Regulatory filings for incentives (subsidies)"),
-          createRow("Knowledge of MNRE guidelines & net metering")
-        ]
-      }
+      { title: "1. Financial Modeling and Analysis", tools: [createRow("Microsoft Excel"), createRow("PVsyst (financial modules)"), createRow("Python for finance")], domain: [createRow("Build financial models (CAPEX/OPEX, IRR, Payback)"), createRow("Sensitivity analysis for MW-scale/Rooftop"), createRow("Yield and revenue forecasting integration")] },
+      { title: "2. Project Finance and Funding", tools: [], domain: [createRow("Structure debt/equity financing"), createRow("Negotiate with banks, NBFCs, and investors"), createRow("Valuation in renewables")] },
+      { title: "3. Budgeting, Cost Control, and Reporting", tools: [createRow("Power BI/Tableau"), createRow("Tally/MS Dynamics NAV")], domain: [createRow("Prepare project budgets & track cash flows"), createRow("Generate MIS reports for management"), createRow("Analytical skills for cost optimization")] },
+      { title: "4. Accounting, Compliance, and Taxation", tools: [], domain: [createRow("GST/income tax compliance & audits"), createRow("Regulatory filings for incentives (subsidies)"), createRow("Knowledge of MNRE guidelines & net metering")] }
     ]
   },
-
-  // --- EXISTING ROOT TECHNICAL ROLES ---
   electrical: {
     id: "electrical",
     label: "Electrical Technician",
     description: "ITI / Diploma / Exp. - Wiring, Inverters, Testing & Safety",
     sections: [
-      {
-        title: "1. DC/AC Wiring and Connections",
-        tools: [],
-        domain: [
-          createRow("Series/parallel wiring of solar panels"),
-          createRow("Cable routing and proper termination"),
-          createRow("Avoiding losses and hazards")
-        ]
-      },
-      {
-        title: "2. Inverter Installation & Sync",
-        tools: [],
-        domain: [
-          createRow("Mounting and connecting inverters"),
-          createRow("Configuring string/hybrid inverters"),
-          createRow("Grid synchronization / Off-grid setup")
-        ]
-      },
-      {
-        title: "3. System Testing and Diagnosis",
-        tools: [
-          createRow("Multimeters"),
-          createRow("Clamp Meters"),
-          createRow("Insulation Testers")
-        ],
-        domain: [
-          createRow("Check voltage, current, grounding"),
-          createRow("Isolate faults and diagnosis")
-        ]
-      },
-      {
-        title: "4. Earthing & Protection",
-        tools: [],
-        domain: [
-          createRow("Installing grounding rods"),
-          createRow("Lightning arresters installation"),
-          createRow("Surge Protection Device (SPD) installation")
-        ]
-      }
+      { title: "1. DC/AC Wiring and Connections", tools: [], domain: [createRow("Series/parallel wiring of solar panels"), createRow("Cable routing and proper termination"), createRow("Avoiding losses and hazards")] },
+      { title: "2. Inverter Installation & Sync", tools: [], domain: [createRow("Mounting and connecting inverters"), createRow("Configuring string/hybrid inverters"), createRow("Grid synchronization / Off-grid setup")] },
+      { title: "3. System Testing and Diagnosis", tools: [createRow("Multimeters"), createRow("Clamp Meters"), createRow("Insulation Testers")], domain: [createRow("Check voltage, current, grounding"), createRow("Isolate faults and diagnosis")] },
+      { title: "4. Earthing & Protection", tools: [], domain: [createRow("Installing grounding rods"), createRow("Lightning arresters installation"), createRow("Surge Protection Device (SPD) installation")] }
     ]
   },
   mechanical: {
@@ -518,52 +178,10 @@ const ROLES_DB: Record<RoleKey, RoleStructure> = {
     label: "Mechanical / Civil Technician",
     description: "ITI / Diploma / Exp. - Structures, Alignment, Civil Works",
     sections: [
-      {
-        title: "1. Structure Assembly & Erection",
-        tools: [],
-        domain: [
-          createRow("Fabricating/fixing rails and brackets"),
-          createRow("Structure assembly for rooftop/ground-mount"),
-          createRow("Welding steel beams, columns, brackets")
-        ]
-      },
-      {
-        title: "2. Panel Fixing and Alignment",
-        tools: [],
-        domain: [
-          createRow("Clamping modules securely"),
-          createRow("Ensuring optimal tilt and azimuth"),
-          createRow("Checking panel orientation")
-        ]
-      },
-      {
-        title: "3. Foundation and Civil Works",
-        tools: [
-          createRow("Laser Levels"),
-          createRow("GPS Devices"),
-          createRow("Theodolites")
-        ],
-        domain: [
-          createRow("Concrete piling / Ballast placement"),
-          createRow("Screw anchoring for stability"),
-          createRow("Pile alignment and leveling"),
-          createRow("Ensuring verticality and spacing")
-        ]
-      },
-      {
-        title: "4. Cable Routing & Safety",
-        tools: [
-          createRow("Harnesses"),
-          createRow("Fall Arrest Systems"),
-          createRow("Ladders / Rigging Gear")
-        ],
-        domain: [
-          createRow("Cable tray and conduit installation"),
-          createRow("Mechanical routing of trays"),
-          createRow("Height safety and rigging"),
-          createRow("Working on elevated structures")
-        ]
-      }
+      { title: "1. Structure Assembly & Erection", tools: [], domain: [createRow("Fabricating/fixing rails and brackets"), createRow("Structure assembly for rooftop/ground-mount"), createRow("Welding steel beams, columns, brackets")] },
+      { title: "2. Panel Fixing and Alignment", tools: [], domain: [createRow("Clamping modules securely"), createRow("Ensuring optimal tilt and azimuth"), createRow("Checking panel orientation")] },
+      { title: "3. Foundation and Civil Works", tools: [createRow("Laser Levels"), createRow("GPS Devices"), createRow("Theodolites")], domain: [createRow("Concrete piling / Ballast placement"), createRow("Screw anchoring for stability"), createRow("Pile alignment and leveling"), createRow("Ensuring verticality and spacing")] },
+      { title: "4. Cable Routing & Safety", tools: [createRow("Harnesses"), createRow("Fall Arrest Systems"), createRow("Ladders / Rigging Gear")], domain: [createRow("Cable tray and conduit installation"), createRow("Mechanical routing of trays"), createRow("Height safety and rigging"), createRow("Working on elevated structures")] }
     ]
   }
 };
@@ -578,7 +196,7 @@ const MultiSelectCell = ({
   placeholder,
   colorClass 
 }: { 
-  options: {id: string, label: string}[], 
+  options: DropdownOption[], 
   selected: string[], 
   onChange: (val: string[]) => void, 
   placeholder: string,
@@ -590,7 +208,6 @@ const MultiSelectCell = ({
     if (val && !selected.includes(val)) {
       onChange([...selected, val]);
     }
-    // Reset select to default immediately
     e.target.value = "";
   };
 
@@ -621,7 +238,6 @@ const MultiSelectCell = ({
         )}
       </div>
 
-      {/* 2. Add Button / Hidden Select */}
       <div className="relative group w-full">
         <select
           onChange={handleSelect}
@@ -629,15 +245,19 @@ const MultiSelectCell = ({
           defaultValue=""
         >
           <option value="" disabled>+ Add {placeholder}</option>
-          {options.map(opt => (
-            <option 
-              key={opt.id} 
-              value={opt.id} 
-              disabled={selected.includes(opt.id)} // Disable if already selected
-            >
-              {opt.id}
-            </option>
-          ))}
+          {options.length > 0 ? (
+            options.map(opt => (
+              <option 
+                key={opt.id} 
+                value={opt.id} 
+                disabled={selected.includes(opt.id)}
+              >
+                {opt.label}
+              </option>
+            ))
+          ) : (
+            <option disabled>No items found</option>
+          )}
         </select>
         <Plus size={10} className="absolute right-2 top-2 text-slate-400 pointer-events-none" />
       </div>
@@ -648,10 +268,24 @@ const MultiSelectCell = ({
 // ----------------------------------------------------------------------
 // SUB-COMPONENT: The Form
 // ----------------------------------------------------------------------
-const RoleSpecificForm = ({ initialSections, roleLabel }: { initialSections: SectionData[], roleLabel: string }) => {
+const RoleSpecificForm = ({ 
+  initialSections, 
+  roleId, 
+  roleLabel,
+  certOptions,
+  expOptions
+}: { 
+  initialSections: SectionData[], 
+  roleId: RoleKey, 
+  roleLabel: string,
+  certOptions: DropdownOption[],
+  expOptions: DropdownOption[]
+}) => {
+  const user = useUserStore((state) => state.user);
   const [activeSections, setActiveSections] = useState<SectionData[]>(() => 
     JSON.parse(JSON.stringify(initialSections))
   );
+  const [isSaving, setIsSaving] = useState(false);
 
   const updateRow = (
     sectionIndex: number, 
@@ -689,6 +323,34 @@ const RoleSpecificForm = ({ initialSections, roleLabel }: { initialSections: Sec
         [type]: section[type].filter((_, rIdx) => rIdx !== rowIndex)
       };
     }));
+  };
+
+  const handleSave = async () => {
+    if (!user?.id) return alert("Please log in.");
+    setIsSaving(true);
+    try {
+      const payload: SavedTechnicalData = {
+        roleId: roleId,
+        sections: activeSections
+      };
+
+      const res = await fetch('/api/dashboard/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          technicalSkills: payload
+        })
+      });
+
+      if (res.ok) alert("Technical skills saved successfully!");
+      else alert("Failed to save.");
+    } catch (error) {
+      console.error(error);
+      alert("Server error.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const RenderTable = ({ 
@@ -744,18 +406,20 @@ const RoleSpecificForm = ({ initialSections, roleLabel }: { initialSections: Sec
                       <option>Beginner</option><option>Intermediate</option><option>Proficient</option><option>Expert</option>
                     </select>
                   </td>
+                  {/* REAL EXPERIENCE DROPDOWN */}
                   <td className="p-2 align-top">
                     <MultiSelectCell 
-                      options={UPLOADED_DOCS.experiences}
+                      options={expOptions}
                       selected={row.experienceRef}
                       placeholder="Exp"
                       colorClass="bg-blue-50 text-blue-700 border-blue-200"
                       onChange={(newVal) => updateRow(sectionIndex, type, i, 'experienceRef', newVal)}
                     />
                   </td>
+                  {/* REAL CERTIFICATE DROPDOWN */}
                   <td className="p-2 align-top">
                     <MultiSelectCell 
-                      options={UPLOADED_DOCS.certificates}
+                      options={certOptions}
                       selected={row.certificateRef}
                       placeholder="Cert"
                       colorClass="bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -800,8 +464,8 @@ const RoleSpecificForm = ({ initialSections, roleLabel }: { initialSections: Sec
             </p>
           </div>
           <div className="hidden md:flex gap-3 text-[10px] text-slate-500">
-             <span className="bg-white px-2 py-1 rounded border shadow-sm">Exp: {UPLOADED_DOCS.experiences.length} Docs</span>
-             <span className="bg-white px-2 py-1 rounded border shadow-sm">Cert: {UPLOADED_DOCS.certificates.length} Docs</span>
+             <span className="bg-white px-2 py-1 rounded border shadow-sm">Exp: {expOptions.length} Docs</span>
+             <span className="bg-white px-2 py-1 rounded border shadow-sm">Cert: {certOptions.length} Docs</span>
           </div>
       </div>
 
@@ -830,6 +494,18 @@ const RoleSpecificForm = ({ initialSections, roleLabel }: { initialSections: Sec
           </div>
         </div>
       ))}
+
+      <div className="sticky bottom-6 flex justify-end">
+        <button 
+          onClick={handleSave}
+          disabled={isSaving}
+          className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center gap-2 shadow-xl disabled:opacity-50"
+        >
+          {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+          Save Technical Skills
+        </button>
+      </div>
+
     </div>
   );
 };
@@ -842,14 +518,14 @@ const SelectionCard = ({
   icon: Icon, 
   title, 
   description, 
-  active = false,
+  active = false, 
   colorClass = "blue"
 }: { 
   onClick: () => void, 
   icon: React.ElementType,
   title: string, 
   description: string,
-  active?: boolean,
+  active?: boolean, 
   colorClass?: string
 }) => (
   <div 
@@ -883,16 +559,71 @@ const SelectionCard = ({
 // MAIN COMPONENT
 // ----------------------------------------------------------------------
 export const SolarDesignSection = () => {
+  const user = useUserStore((state) => state.user);
   const [view, setView] = useState<ViewState>('root');
   const [selectedRole, setSelectedRole] = useState<RoleKey | null>(null);
+  
+  const [savedData, setSavedData] = useState<SavedTechnicalData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // PV roles and the new engineering roles act as sub-tracks
+  // New States for Dropdown Options
+  const [certOptions, setCertOptions] = useState<DropdownOption[]>([]);
+  const [expOptions, setExpOptions] = useState<DropdownOption[]>([]);
+
+  // --- 1. Fetch Data on Mount ---
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`/api/dashboard/profile?userId=${user.id}`);
+        const data = await res.json();
+        
+        // 1. Process Technical Skills
+        if (res.ok && data.technicalSkills) {
+          const techData = data.technicalSkills as SavedTechnicalData;
+          setSavedData(techData);
+          if (techData.roleId) {
+            setSelectedRole(techData.roleId);
+            setView('form');
+          }
+        }
+
+        // 2. Process Certificate Options
+        if (res.ok && data.certificates?.length) {
+          interface CertData { name: string; fileName: string; }
+          const mappedCerts = data.certificates.map((c: CertData, i: number) => ({
+            id: `C${i + 1}`,
+            label: `C${i + 1} - ${c.name} (${c.fileName || 'No File'})`
+          }));
+          setCertOptions(mappedCerts);
+        }
+
+        // 3. Process Experience Options
+        if (res.ok && data.experience_details?.length) {
+          interface ExpData { title: string; company: string; }
+          const mappedExps = data.experience_details.map((e: ExpData, i: number) => ({
+            id: `E${i + 1}`,
+            label: `E${i + 1} - ${e.title} @ ${e.company}`
+          }));
+          setExpOptions(mappedExps);
+        }
+
+      } catch (error) {
+        console.error("Fetch error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?.id]);
+
   const isSubTrack = (role: RoleKey | null) => 
     role && ['design', 'om', 'project', 'mech_eng', 'elec_eng', 'substation', 'finance'].includes(role);
 
   const handleBack = () => {
     if (view === 'form') {
-      // If we are in one of the sub-tracks, go back to the sub-track selection view
       if (isSubTrack(selectedRole)) {
         setView('pv_subroles');
       } else {
@@ -913,6 +644,8 @@ export const SolarDesignSection = () => {
     setView('pv_subroles');
   };
 
+  if (loading) return <div className="p-10 text-center text-slate-500 font-bold flex flex-col items-center gap-2"><Loader2 className="animate-spin"/> Loading Technical Profile...</div>;
+
   return (
     <section className="bg-white text-slate-900 rounded-2xl p-8 shadow-sm border border-slate-300 mb-12 min-h-[600px]">
       
@@ -929,7 +662,6 @@ export const SolarDesignSection = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* 1. PV Engineer Category - EXPANDED */}
             <SelectionCard 
               onClick={handlePVGroupSelect}
               icon={Briefcase}
@@ -938,7 +670,6 @@ export const SolarDesignSection = () => {
               colorClass="blue"
             />
             
-            {/* 2. Electrical Technician */}
             <SelectionCard 
               onClick={() => handleRoleSelect('electrical')}
               icon={Cpu}
@@ -947,7 +678,6 @@ export const SolarDesignSection = () => {
               colorClass="emerald"
             />
 
-            {/* 3. Mechanical Technician */}
             <SelectionCard 
               onClick={() => handleRoleSelect('mechanical')}
               icon={Settings}
@@ -959,7 +689,7 @@ export const SolarDesignSection = () => {
         </div>
       )}
 
-      {/* --- VIEW 2: PV SUB-ROLES SELECTION (Updated to include 4 new roles) --- */}
+      {/* --- VIEW 2: PV SUB-ROLES SELECTION --- */}
       {view === 'pv_subroles' && (
         <div className="animate-in fade-in slide-in-from-right-8 duration-300">
           <div className="flex items-center gap-4 mb-6 border-b border-slate-200 pb-4">
@@ -976,9 +706,7 @@ export const SolarDesignSection = () => {
               </h2>
           </div>
           
-          {/* Updated Grid to hold 7 items */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Original 3 */}
             <SelectionCard 
               onClick={() => handleRoleSelect('design')}
               icon={Briefcase}
@@ -997,32 +725,24 @@ export const SolarDesignSection = () => {
               title={ROLES_DB.project.label}
               description={ROLES_DB.project.description}
             />
-
-            {/* NEW: Mechanical Engineer */}
             <SelectionCard 
               onClick={() => handleRoleSelect('mech_eng')}
               icon={PenTool}
               title={ROLES_DB.mech_eng.label}
               description="Structural Design, Mounting & Site Oversight"
             />
-
-            {/* NEW: Electrical Engineer */}
             <SelectionCard 
               onClick={() => handleRoleSelect('elec_eng')}
               icon={Zap}
               title={ROLES_DB.elec_eng.label}
               description="Grid Integration, System Design & Optimization"
             />
-
-            {/* NEW: Substation Engineer */}
             <SelectionCard 
               onClick={() => handleRoleSelect('substation')}
               icon={HardHat}
               title={ROLES_DB.substation.label}
               description="High Voltage, Transformers & Grid Protection"
             />
-
-            {/* NEW: Finance */}
             <SelectionCard 
               onClick={() => handleRoleSelect('finance')}
               icon={TrendingUp}
@@ -1036,7 +756,6 @@ export const SolarDesignSection = () => {
       {/* --- VIEW 3: FORM VIEW --- */}
       {view === 'form' && selectedRole && (
         <div>
-          {/* Navigation Header */}
           <div className="flex items-center gap-4 mb-6 border-b border-slate-200 pb-4">
             <button 
               onClick={handleBack}
@@ -1051,11 +770,18 @@ export const SolarDesignSection = () => {
             </span>
           </div>
 
-          {/* Form Component - Key ensures it resets when ID changes */}
           <RoleSpecificForm 
             key={selectedRole} 
-            initialSections={ROLES_DB[selectedRole].sections} 
+            roleId={selectedRole}
+            initialSections={
+              (savedData && savedData.roleId === selectedRole) 
+                ? savedData.sections 
+                : ROLES_DB[selectedRole].sections
+            } 
             roleLabel={ROLES_DB[selectedRole].label}
+            // Passing the real dynamic options
+            certOptions={certOptions}
+            expOptions={expOptions}
           />
         </div>
       )}
