@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    if (user.role !== role) {
+    if (user.role !== role && user.role!=='admin') {
       return NextResponse.json({ error: `Please log in as a ${user.role}` }, { status: 403 });
     }
 

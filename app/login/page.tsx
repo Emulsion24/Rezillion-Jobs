@@ -84,7 +84,13 @@ export default function LoginPage() {
         }
         // -----------------------------------
 
-        router.push(successData.redirectUrl);
+        // MODIFIED: Redirect Admin to Dashboard
+        if (successData.user.role === 'admin') {
+            router.push('/admin/dashboard');
+        } else {
+            router.push(successData.redirectUrl);
+        }
+        
         router.refresh();
       }
 

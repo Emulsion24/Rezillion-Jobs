@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import dynamic from 'next/dynamic'; // 1. Import dynamic
-import Image from 'next/image';     // 2. Import Image for linter fixes
+import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { 
@@ -11,7 +11,7 @@ import {
   LayoutDashboard, FileText, CheckCircle2,
   Clock, Zap, Menu, X,
   Lock, BookOpen, Landmark, ExternalLink,
-  BellRing, GraduationCap, PlayCircle, Star 
+  BellRing, GraduationCap, PlayCircle, Star, Loader2 
 } from 'lucide-react';
 
 import { NameQualification } from '../components/NameQualification';
@@ -20,52 +20,22 @@ import { AdditionalDetails } from '../components/AdditionalDetails';
 import { SolarDesignSection } from '../components/SolarDesignEngineerSection';
 import { useUserStore } from '@/store/userStore';
 
-// --- 1. MOCK DATA ---
+// --- TYPES FOR REAL JOB DATA ---
+interface Job {
+  id: number;
+  title: string;
+  company_name: string;
+  location: string;
+  salary_min: string;
+  salary_max: string;
+  currency: string;
+  job_type: string;
+  skills: string[];
+  created_at: string;
+  has_applied: boolean; // From backend logic
+}
 
-const JOB_DATA = [
-  { 
-    id: 1, 
-    title: 'Solar Design Engineer', 
-    company: 'Tata Power Solar', 
-    logo: 'T',
-    location: 'Bangalore / Remote', 
-    type: 'Full-time', 
-    posted: '2 days ago',
-    tags: ['PVsyst', 'AutoCAD', 'Helioscope'],
-    salary: '₹6L - ₹9L PA',
-    color: 'bg-indigo-600'
-  },
-  { 
-    id: 2, 
-    title: 'Site Project Manager', 
-    company: 'Adani Green Energy', 
-    logo: 'A',
-    location: 'Bhuj, Gujarat', 
-    type: 'On-site', 
-    posted: '5 days ago',
-    tags: ['Site Execution', 'Civil Works', 'Team Lead'],
-    salary: '₹12L - ₹15L PA',
-    color: 'bg-orange-500'
-  },
-  { 
-    id: 3, 
-    title: 'O&M Engineer', 
-    company: 'Sterling & Wilson', 
-    logo: 'S',
-    location: 'Rajasthan', 
-    type: 'Full-time', 
-    posted: 'Just now',
-    tags: ['SCADA', 'HT/LT Maintenance'],
-    salary: '₹4L - ₹6L PA',
-    color: 'bg-blue-600'
-  },
-];
-
-const APPLICATIONS_DATA = [
-  { id: 101, role: 'Senior PV Engineer', company: 'Renew Power', status: 'Interview', date: '12 Oct', statusColor: 'text-orange-600 bg-orange-50' },
-  { id: 102, role: 'Project Manager', company: 'Azure Power', status: 'Applied', date: '15 Oct', statusColor: 'text-blue-600 bg-blue-50' },
-  { id: 103, role: 'Graduate Trainee', company: 'Vikram Solar', status: 'Rejected', date: '01 Oct', statusColor: 'text-red-600 bg-red-50' },
-];
+// --- CONSTANTS (Static Data for other tabs) ---
 
 const GOVT_JOBS_DATA = [
   { id: 'g1', role: 'Executive Trainee (Electrical)', org: 'NTPC Limited', type: 'PSU (Navratna)', location: 'Pan India', deadline: '25 Nov 2024', eligibility: 'B.Tech Electrical + GATE 2024', link: '#' },
@@ -79,7 +49,7 @@ const COURSE_DATA = [
     { id: 'c3', title: 'Safety Standards in HV Projects', provider: 'SafetyFirst', duration: '4h 45m', lessons: 10, rating: 4.9, level: 'Advanced', thumbnailColor: 'bg-red-500' }
 ];
 
-// --- 2. SUB COMPONENTS ---
+// --- SUB COMPONENTS ---
 
 const BasicDetailsForm = () => (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 md:p-8 h-full space-y-6 divide-y divide-slate-100 flex flex-col">
@@ -115,71 +85,206 @@ const SidebarItem = ({ id, icon: Icon, label, activeTab, setActiveTab, onMobileC
   </button>
 );
 
-const FindJobsView = () => (
-  <div className="flex flex-col xl:flex-row gap-8 animate-in fade-in duration-500">
-    <div className="flex-1 min-w-0 space-y-6">
-      <div className="bg-white p-2 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col md:flex-row gap-2">
-          <div className="flex-1 flex items-center px-4 py-2 border-b md:border-b-0 border-slate-100">
-            <Search className="h-5 w-5 text-slate-400 mr-3 shrink-0" />
-            <input type="text" placeholder="Search by Role..." className="w-full outline-none text-sm font-bold text-slate-700 placeholder:font-medium placeholder:text-slate-400"/>
-          </div>
-          <div className="h-[1px] md:h-8 w-full md:w-[1px] bg-slate-200 self-center hidden md:block"></div>
-          <div className="flex-1 flex items-center px-4 py-2">
-            <MapPin className="h-5 w-5 text-slate-400 mr-3 shrink-0" />
-            <input type="text" placeholder="City or State" className="w-full outline-none text-sm font-bold text-slate-700 placeholder:font-medium placeholder:text-slate-400" />
-          </div>
-          <button className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-600 transition flex items-center gap-2 justify-center shrink-0">Find Jobs</button>
+// --- UPDATED FIND JOBS VIEW ---
+const FindJobsView = () => {
+  const user = useUserStore((state) => state.user);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Filter States
+  const [search, setSearch] = useState("");
+  const [location, setLocation] = useState("");
+  const [applyingId, setApplyingId] = useState<number | null>(null);
+
+  // 1. Fetch Jobs (with filters)
+  useEffect(() => {
+    const fetchJobs = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (user?.id) params.append('userId', user.id);
+        if (search) params.append('search', search);
+        if (location) params.append('location', location);
+
+        const res = await fetch(`/api/dashboard/jobs?${params.toString()}`);
+        if (res.ok) {
+          const data = await res.json();
+          setJobs(data);
+        }
+      } catch (error) {
+        console.error("Fetch jobs error", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Debounce the search
+    const timer = setTimeout(() => fetchJobs(), 500);
+    return () => clearTimeout(timer);
+  }, [search, location, user?.id]);
+
+  // 2. Handle Apply
+  const handleApply = async (jobId: number) => {
+    if (!user?.id) return alert("Please log in to apply.");
+    setApplyingId(jobId);
+
+    try {
+      const res = await fetch('/api/dashboard/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, jobId })
+      });
+
+      if (res.ok) {
+        // Optimistically update UI
+        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, has_applied: true } : j));
+        alert("Application submitted successfully!");
+      } else {
+        alert("Failed to apply.");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setApplyingId(null);
+    }
+  };
+
+  // Helper to format salary
+  const formatSalary = (min: string, max: string, curr: string) => {
+    if (!min || !max) return "Not Disclosed";
+    // Simple formatter k = thousand, L = lakh (if INR)
+    const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: curr, maximumSignificantDigits: 3 });
+    return `${formatter.format(Number(min))} - ${formatter.format(Number(max))}`;
+  };
+
+  // Helper to format time
+  const timeAgo = (dateStr: string) => {
+    const days = Math.floor((new Date().getTime() - new Date(dateStr).getTime()) / (1000 * 3600 * 24));
+    return days === 0 ? "Today" : `${days}d ago`;
+  };
+
+  return (
+    <div className="flex flex-col xl:flex-row gap-8 animate-in fade-in duration-500">
+      <div className="flex-1 min-w-0 space-y-6">
+        
+        {/* Search Bar */}
+        <div className="bg-white p-2 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col md:flex-row gap-2">
+            <div className="flex-1 flex items-center px-4 py-2 border-b md:border-b-0 border-slate-100">
+              <Search className="h-5 w-5 text-slate-400 mr-3 shrink-0" />
+              <input 
+                type="text" 
+                placeholder="Search Role or Company..." 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full outline-none text-sm font-bold text-slate-700 placeholder:font-medium placeholder:text-slate-400"
+              />
+            </div>
+            <div className="h-[1px] md:h-8 w-full md:w-[1px] bg-slate-200 self-center hidden md:block"></div>
+            <div className="flex-1 flex items-center px-4 py-2">
+              <MapPin className="h-5 w-5 text-slate-400 mr-3 shrink-0" />
+              <input 
+                type="text" 
+                placeholder="City or State" 
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full outline-none text-sm font-bold text-slate-700 placeholder:font-medium placeholder:text-slate-400" 
+              />
+            </div>
+            <button className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-600 transition flex items-center gap-2 justify-center shrink-0">
+              Find Jobs
+            </button>
+        </div>
+
+        {/* Job List */}
+        <div className="grid grid-cols-1 gap-4">
+            <h3 className="text-lg font-black text-slate-900 px-1">Recommended for You</h3>
+            
+            {loading ? (
+               <div className="p-8 text-center text-slate-500 font-bold flex items-center justify-center gap-2">
+                 <Loader2 className="animate-spin" /> Loading Jobs...
+               </div>
+            ) : jobs.length === 0 ? (
+               <div className="p-8 text-center text-slate-500 border-2 border-dashed border-slate-300 rounded-xl">
+                 No jobs found matching your criteria.
+               </div>
+            ) : (
+              jobs.map((job) => (
+                <motion.div 
+                    key={job.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ scale: 1.005 }}
+                    className="group bg-white p-6 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:shadow-lg transition-all cursor-pointer relative overflow-hidden"
+                >
+                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${job.has_applied ? 'bg-green-500' : 'bg-indigo-600'}`}></div>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pl-2">
+                      <div className="flex gap-5 items-start">
+                          <div className={`w-14 h-14 ${job.has_applied ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'} rounded-xl flex items-center justify-center font-black text-2xl shadow-sm shrink-0 uppercase`}>
+                            {job.company_name?.charAt(0) || "C"}
+                          </div>
+                          <div>
+                              <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">{job.title}</h3>
+                              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 font-semibold mt-1">
+                                  <span>{job.company_name || "Confidential"}</span>
+                                  <span className="hidden sm:inline w-1 h-1 bg-slate-300 rounded-full"></span>
+                                  <span className="flex items-center gap-1"><MapPin size={12}/> {job.location}</span>
+                                  <span className="hidden sm:inline w-1 h-1 bg-slate-300 rounded-full"></span>
+                                  <span className="flex items-center gap-1"><Clock size={12}/> {timeAgo(job.created_at)}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-2 mt-3">
+                                  {job.skills?.slice(0, 4).map(tag => (
+                                      <span key={tag} className="px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-600 text-[11px] font-bold rounded-md">{tag}</span>
+                                  ))}
+                              </div>
+                          </div>
+                      </div>
+                      <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-3 mt-2 md:mt-0">
+                          <div className="text-left md:text-right">
+                              <p className="text-sm text-slate-400 font-bold uppercase tracking-wider">Salary</p>
+                              <p className="text-lg font-black text-slate-900">{formatSalary(job.salary_min, job.salary_max, job.currency)}</p>
+                          </div>
+                          
+                          {job.has_applied ? (
+                             <button disabled className="px-6 py-2.5 bg-green-100 text-green-700 border border-green-200 rounded-lg font-bold text-sm flex items-center justify-center gap-2 cursor-default">
+                                <CheckCircle2 size={16} /> Applied
+                             </button>
+                          ) : (
+                             <button 
+                                onClick={() => handleApply(job.id)}
+                                disabled={applyingId === job.id}
+                                className="px-6 py-2.5 bg-slate-900 text-white rounded-lg font-bold text-sm hover:bg-indigo-600 shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 disabled:opacity-50"
+                             >
+                                {applyingId === job.id ? <Loader2 className="animate-spin" size={16}/> : <Zap size={16} className="fill-current" />} 
+                                <span className="hidden sm:inline">Apply Now</span><span className="sm:hidden">Apply</span>
+                             </button>
+                          )}
+                      </div>
+                    </div>
+                </motion.div>
+              ))
+            )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-          <h3 className="text-lg font-black text-slate-900 px-1">Recommended for You</h3>
-          {JOB_DATA.map((job) => (
-          <motion.div key={job.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} whileHover={{ scale: 1.005 }} className="group bg-white p-6 rounded-2xl border border-slate-100 hover:border-indigo-200 hover:shadow-lg transition-all cursor-pointer relative overflow-hidden">
-              <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${job.color}`}></div>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pl-2">
-                <div className="flex gap-5 items-start">
-                    <div className={`w-14 h-14 ${job.color} rounded-xl flex items-center justify-center text-white font-black text-2xl shadow-md shrink-0`}>{job.logo}</div>
-                    <div>
-                        <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">{job.title}</h3>
-                        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 font-semibold mt-1">
-                            <span>{job.company}</span>
-                            <span className="hidden sm:inline w-1 h-1 bg-slate-300 rounded-full"></span>
-                            <span className="flex items-center gap-1"><MapPin size={12}/> {job.location}</span>
-                            <span className="hidden sm:inline w-1 h-1 bg-slate-300 rounded-full"></span>
-                            <span className="flex items-center gap-1"><Clock size={12}/> {job.posted}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2 mt-3">
-                            {job.tags.map(tag => (<span key={tag} className="px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-600 text-[11px] font-bold rounded-md">{tag}</span>))}
-                        </div>
-                    </div>
+      <div className="w-full xl:w-80 space-y-6">
+        <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles size={100} /></div>
+            <div className="relative z-10">
+                <div className="flex justify-between items-start mb-4"><h3 className="font-bold text-lg">Profile Strength</h3><span className="bg-white/20 px-2 py-1 rounded text-xs font-bold">65%</span></div>
+                <div className="w-full bg-white/20 h-2 rounded-full mb-6 overflow-hidden"><div className="bg-indigo-400 h-full w-[65%] rounded-full"></div></div>
+                <div className="space-y-3">
+                   <div className="flex items-center gap-3 p-3 bg-white/10 rounded-xl"><div className="w-6 h-6 rounded-full bg-green-400 text-slate-900 flex items-center justify-center"><CheckCircle2 size={14} /></div><span className="text-sm font-bold text-slate-200">Basic Details</span></div>
                 </div>
-                <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-3 mt-2 md:mt-0">
-                    <div className="text-left md:text-right"><p className="text-sm text-slate-400 font-bold uppercase tracking-wider">Salary</p><p className="text-lg font-black text-slate-900">{job.salary}</p></div>
-                    <button className="px-6 py-2.5 bg-slate-900 text-white rounded-lg font-bold text-sm hover:bg-indigo-600 shadow-md hover:shadow-lg transition flex items-center justify-center gap-2"><Zap size={16} className="fill-current" /> <span className="hidden sm:inline">Apply Now</span><span className="sm:hidden">Apply</span></button>
-                </div>
-              </div>
-          </motion.div>
-          ))}
+            </div>
+        </div>
+        <div className="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-colors cursor-pointer group">
+            <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-white text-slate-400 group-hover:text-indigo-600 transition-colors"><FileText size={24} /></div>
+            <h4 className="font-bold text-slate-900 text-sm">Update Resume</h4>
+        </div>
       </div>
     </div>
-    <div className="w-full xl:w-80 space-y-6">
-      <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles size={100} /></div>
-          <div className="relative z-10">
-              <div className="flex justify-between items-start mb-4"><h3 className="font-bold text-lg">Profile Strength</h3><span className="bg-white/20 px-2 py-1 rounded text-xs font-bold">65%</span></div>
-              <div className="w-full bg-white/20 h-2 rounded-full mb-6 overflow-hidden"><div className="bg-indigo-400 h-full w-[65%] rounded-full"></div></div>
-              <div className="space-y-3">
-                 <div className="flex items-center gap-3 p-3 bg-white/10 rounded-xl"><div className="w-6 h-6 rounded-full bg-green-400 text-slate-900 flex items-center justify-center"><CheckCircle2 size={14} /></div><span className="text-sm font-bold text-slate-200">Basic Details</span></div>
-              </div>
-          </div>
-      </div>
-      <div className="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-colors cursor-pointer group">
-          <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-white text-slate-400 group-hover:text-indigo-600 transition-colors"><FileText size={24} /></div>
-          <h4 className="font-bold text-slate-900 text-sm">Update Resume</h4>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 const GovtJobsView = () => (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
@@ -196,10 +301,8 @@ const GovtJobsView = () => (
                     <div>
                         <div className="flex justify-between items-start mb-3">
                             <div><h4 className="font-black text-slate-900 text-lg leading-tight">{job.org}</h4><span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded mt-1 inline-block">{job.type}</span></div>
-                            {/* LINTER FIX: Using Next/Image with unoptimized */}
-                            <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0">
-                                <Image src={`https://ui-avatars.com/api/?name=${job.org}&background=f97316&color=fff&size=48`} alt="Logo" fill className="object-cover" unoptimized />
-                            </div>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={`https://ui-avatars.com/api/?name=${job.org}&background=f97316&color=fff&size=48`} className="w-10 h-10 rounded-lg" alt="Logo"/>
                         </div>
                         <h5 className="font-bold text-slate-700 mb-4">{job.role}</h5>
                         <div className="space-y-2 text-sm text-slate-600 font-medium">
@@ -243,18 +346,39 @@ const LearningHubView = () => (
   </motion.div>
 );
 
-const ApplicationsView = () => (
-  <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden animate-in fade-in duration-500">
-    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50"><h3 className="text-lg md:text-xl font-black text-slate-900">Application History</h3><button className="text-sm font-bold text-indigo-600 flex items-center gap-1">View Archived <ChevronRight size={14}/></button></div>
-    <div className="overflow-x-auto">
-      <table className="w-full text-left min-w-[600px]"><thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider"><tr><th className="p-4 md:p-5">Role</th><th className="p-4 md:p-5">Company</th><th className="p-4 md:p-5">Status</th><th className="p-4 md:p-5">Date</th></tr></thead><tbody className="divide-y divide-slate-100">
-          {APPLICATIONS_DATA.map((app) => (
-              <tr key={app.id} className="hover:bg-slate-50 transition-colors"><td className="p-4 md:p-5 font-bold text-slate-900">{app.role}</td><td className="p-4 md:p-5 font-medium text-slate-600">{app.company}</td><td className="p-4 md:p-5"><span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${app.statusColor}`}>{app.status}</span></td><td className="p-4 md:p-5 text-sm text-slate-500">{app.date}</td></tr>
-          ))}
-      </tbody></table>
+const ApplicationsView = () => {
+  const { user } = useUserStore(); 
+  // Added type definition to avoid map errors
+  const [AppliedJobs, setAppliedJobs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetch(`/api/dashboard/applications?userId=${user.id}`)
+        .then(res => res.json())
+        .then(data => setAppliedJobs(data))
+        .catch(err => console.error(err));
+    }
+  }, [user]);
+
+  // Added return statement
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden animate-in fade-in duration-500">
+      <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50"><h3 className="text-lg md:text-xl font-black text-slate-900">Application History</h3><button className="text-sm font-bold text-indigo-600 flex items-center gap-1">View Archived <ChevronRight size={14}/></button></div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left min-w-[600px]"><thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider"><tr><th className="p-4 md:p-5">Role</th><th className="p-4 md:p-5">Company</th><th className="p-4 md:p-5">Status</th><th className="p-4 md:p-5">Date</th></tr></thead><tbody className="divide-y divide-slate-100">
+            {AppliedJobs.map((app) => (
+                <tr key={app.id || app.application_id} className="hover:bg-slate-50 transition-colors">
+                  <td className="p-4 md:p-5 font-bold text-slate-900">{app.role || app.job_title}</td>
+                  <td className="p-4 md:p-5 font-medium text-slate-600">{app.company || "Rezillion"}</td>
+                  <td className="p-4 md:p-5"><span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${app.statusColor || 'bg-blue-100 text-blue-600'}`}>{app.status || app.application_status}</span></td>
+                  <td className="p-4 md:p-5 text-sm text-slate-500">{app.date || new Date(app.applied_date).toLocaleDateString()}</td>
+                </tr>
+            ))}
+        </tbody></table>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const SettingsView = () => (
     <div className="max-w-2xl bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
@@ -273,7 +397,6 @@ const DashboardComponent = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
   
-  // --- ZUSTAND STORE LOGIC (Clean, no hydration useEffect needed) ---
   const user = useUserStore((state) => state.user);
   const logout = useUserStore((state) => state.logout);
 
