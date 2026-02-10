@@ -384,7 +384,7 @@ const ApplicationsView = () => {
                   <td className="p-4 md:p-5 font-bold text-slate-900">{app.role || app.job_title}</td>
                   <td className="p-4 md:p-5 font-medium text-slate-600">{app.company || "Rezillion"}</td>
                   <td className="p-4 md:p-5"><span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${app.statusColor || 'bg-blue-100 text-blue-600'}`}>{app.status || app.application_status}</span></td>
-                  <td className="p-4 md:p-5 text-sm text-slate-500">{app.date || new Date(app.applied_date).toLocaleDateString()}</td>
+                  <td className="p-4 md:p-5 text-sm text-slate-500">{app.date || (app.applied_date ? new Date(app.applied_date).toLocaleDateString() : "N/A")}</td>
                 </tr>
             ))}
         </tbody></table>

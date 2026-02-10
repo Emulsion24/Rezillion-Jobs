@@ -78,7 +78,7 @@ export async function GET(request: Request) {
     const result = await db.query(query, params);
 
     // Map DB result using strict interfaces
-    const formattedCandidates = result.rows.map((row: CandidateDbRow) => {
+    const formattedCandidates = (result.rows as CandidateDbRow[]).map((row: CandidateDbRow) => {
       
       // Safe Cast: Treat unknown JSONB as our defined interface
       const techSkills = (row.technical_skills as TechnicalSkillsData) || {};
