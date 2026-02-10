@@ -18,13 +18,38 @@ import {
   Clock,
   Trash2,
   ExternalLink,
-  LogOut
+  LogOut,
+  LucideIcon
 } from 'lucide-react';
 
+// --- Types ---
+type LearningItem = {
+  id: number | string;
+  title: string;
+  description: string;
+  file: string;
+  date: string;
+};
+
+type JobItem = {
+  id: number;
+  jobTitle: string;
+  organization: string;
+  type: string;
+  deadline: string;
+  link: string;
+  status: string;
+};
+
+type LearningDataState = {
+  employee: LearningItem[];
+  employer: LearningItem[];
+};
+
 /**
- * MOCK DATA & API SIMULATION
+ * MOCK DATA
  */
-const INITIAL_DATA = {
+const INITIAL_DATA: LearningDataState = {
   employee: [
     { id: 1, title: 'Fire Safety Guidelines 2025', description: 'Mandatory safety protocols.', file: 'safety_v1.pdf', date: '2025-01-10' },
     { id: 2, title: 'HR Policy Handbook', description: 'Updated leave and benefits policy.', file: 'hr_manual.pdf', date: '2024-12-05' },
@@ -33,29 +58,30 @@ const INITIAL_DATA = {
     { id: 1, title: 'Q1 Financial Compliance', description: 'Taxation updates for directors.', file: 'tax_q1.pdf', date: '2025-01-02' },
     { id: 2, title: 'Management Audit Checklist', description: 'For internal audit preparation.', file: 'audit_check.docx', date: '2025-01-15' },
   ],
-  jobs: [
-    { 
-      id: 1, 
-      jobTitle: 'Junior Engineer (Civil)', 
-      organization: 'Indian Railways', 
-      type: 'Central Govt', 
-      deadline: '2025-03-15', 
-      link: 'https://rrb.gov.in', 
-      status: 'Active' 
-    },
-    { 
-      id: 2, 
-      jobTitle: 'Executive Trainee', 
-      organization: 'ONGC', 
-      type: 'PSU', 
-      deadline: '2025-02-28', 
-      link: 'https://ongcindia.com', 
-      status: 'Active' 
-    }
-  ]
 };
 
-// --- reusable UI components ---
+const INITIAL_JOBS: JobItem[] = [
+  { 
+    id: 1, 
+    jobTitle: 'Junior Engineer (Civil)', 
+    organization: 'Indian Railways', 
+    type: 'Central Govt', 
+    deadline: '2025-03-15', 
+    link: 'https://rrb.gov.in', 
+    status: 'Active' 
+  },
+  { 
+    id: 2, 
+    jobTitle: 'Executive Trainee', 
+    organization: 'ONGC', 
+    type: 'PSU', 
+    deadline: '2025-02-28', 
+    link: 'https://ongcindia.com', 
+    status: 'Active' 
+  }
+];
+
+// --- Reusable UI components ---
 const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 ${className}`}>
     {children}
@@ -77,25 +103,353 @@ const Badge = ({ type }: { type: string }) => {
   );
 };
 
+// --- Sub-Components (Moved outside main component) ---
+
+const SidebarItem = ({ 
+  id, 
+  icon: Icon, 
+  label,
+  activeTab,
+  onClick 
+}: { 
+  id: string; 
+  icon: LucideIcon; 
+  label: string;
+  activeTab: string;
+  onClick: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+      activeTab === id 
+        ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+        : 'text-gray-600 hover:bg-gray-100'
+    }`}
+  >
+    <Icon size={20} />
+    <span className="font-medium">{label}</span>
+  </button>
+);
+
+const DashboardHome = ({ 
+  learningData, 
+  jobData, 
+  setActiveTab 
+}: { 
+  learningData: LearningDataState; 
+  jobData: JobItem[]; 
+  setActiveTab: (tab: string) => void;
+}) => (
+  <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <Card className="border-l-4 border-l-blue-500">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-500">Total Employee Docs</p>
+            <h3 className="text-2xl font-bold text-gray-800">{learningData.employee.length}</h3>
+          </div>
+          <UserCheck className="w-8 h-8 text-blue-500 opacity-20" />
+        </div>
+      </Card>
+      <Card className="border-l-4 border-l-purple-500">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-500">Total Employer Docs</p>
+            <h3 className="text-2xl font-bold text-gray-800">{learningData.employer.length}</h3>
+          </div>
+          <Briefcase className="w-8 h-8 text-purple-500 opacity-20" />
+        </div>
+      </Card>
+      <Card className="border-l-4 border-l-emerald-500">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-500">Active Job Postings</p>
+            <h3 className="text-2xl font-bold text-gray-800">{jobData.length}</h3>
+          </div>
+          <Building2 className="w-8 h-8 text-emerald-500 opacity-20" />
+        </div>
+      </Card>
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">Recent Job Postings</h3>
+          <button onClick={() => setActiveTab('jobs')} className="text-sm text-blue-600 hover:underline">View All</button>
+        </div>
+        <div className="space-y-3">
+          {jobData.slice(0, 3).map(job => (
+            <div key={job.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+              <div>
+                <p className="font-medium text-gray-800">{job.jobTitle}</p>
+                <p className="text-xs text-gray-500">{job.organization}</p>
+              </div>
+              <Badge type={job.type} />
+            </div>
+          ))}
+          {jobData.length === 0 && <p className="text-center text-gray-400 py-4">No jobs posted yet.</p>}
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800">Recent Learning Materials</h3>
+        </div>
+        <div className="space-y-3">
+          {[...learningData.employee, ...learningData.employer].slice(0, 3).map((item, idx) => (
+            <div key={`${item.id}-${idx}`} className="flex items-center p-3 bg-gray-50 rounded-lg">
+              <FileText className="w-5 h-5 text-gray-400 mr-3" />
+              <div className="flex-1 overflow-hidden">
+                <p className="font-medium text-gray-800 truncate">{item.title}</p>
+                <p className="text-xs text-gray-500">{item.date}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  </div>
+);
+
+const LearningUploadView = ({ 
+  category, 
+  learningData, 
+  handleLearningUpload, 
+  isLoading, 
+  deleteItem 
+}: { 
+  category: 'employee' | 'employer';
+  learningData: LearningDataState;
+  handleLearningUpload: (e: React.FormEvent<HTMLFormElement>, category: 'employee' | 'employer') => void;
+  isLoading: boolean;
+  deleteItem: (id: number | string, type: 'job' | 'learning', category?: 'employee' | 'employer') => void;
+}) => {
+  const isEmployee = category === 'employee';
+  const data = learningData[category];
+  
+  // Tailwind Safe Classes
+  const iconColor = isEmployee ? 'text-blue-600' : 'text-purple-600';
+  const btnColor = isEmployee ? 'bg-blue-600 hover:bg-blue-700' : 'bg-purple-600 hover:bg-purple-700';
+  const iconBg = isEmployee ? 'bg-blue-50' : 'bg-purple-50';
+
+  return (
+    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">
+            {isEmployee ? 'Employee' : 'Employer'} Learning
+          </h2>
+          <p className="text-gray-500">Upload training materials and guides for {isEmployee ? 'staff' : 'management'}.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <Card>
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Upload className={`w-5 h-5 mr-2 ${iconColor}`} />
+              Upload New Material
+            </h3>
+            <form onSubmit={(e) => handleLearningUpload(e, category)} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <input required name="title" type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Safety Manual 2024" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea name="description" rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Brief description of content..." />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">File (PDF/Video)</label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors">
+                  <input required name="file" type="file" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                </div>
+              </div>
+              <button 
+                disabled={isLoading}
+                className={`w-full py-2 px-4 ${btnColor} text-white rounded-lg transition-colors flex items-center justify-center`}
+              >
+                {isLoading ? 'Uploading...' : 'Upload Material'}
+              </button>
+            </form>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-2 space-y-4">
+          {data.map(item => (
+            <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-start justify-between hover:shadow-md transition-shadow">
+              <div className="flex items-start space-x-4">
+                <div className={`p-3 rounded-lg ${iconBg} ${iconColor}`}>
+                  <FileText size={24} />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-800">{item.title}</h4>
+                  <p className="text-sm text-gray-600 mb-1">{item.description}</p>
+                  <div className="flex items-center space-x-3 text-xs text-gray-400">
+                    <span>{item.date}</span>
+                    <span>•</span>
+                    <span>{item.file}</span>
+                  </div>
+                </div>
+              </div>
+              <button 
+                onClick={() => deleteItem(item.id, 'learning', category)}
+                className="text-gray-400 hover:text-red-500 p-2"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          ))}
+          {data.length === 0 && (
+            <div className="text-center py-12 bg-gray-50 rounded-xl border-dashed border-2 border-gray-200">
+              <p className="text-gray-500">No materials uploaded yet.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GovtJobView = ({ 
+  jobData, 
+  handleJobUpload, 
+  isLoading, 
+  deleteItem 
+}: { 
+  jobData: JobItem[];
+  handleJobUpload: (e: React.FormEvent<HTMLFormElement>) => void;
+  isLoading: boolean;
+  deleteItem: (id: number, type: 'job' | 'learning') => void;
+}) => (
+  <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+    <div className="flex justify-between items-center">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-800">Govt & PSU Job News</h2>
+        <p className="text-gray-500">Post new job openings and notifications.</p>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-1">
+        <Card>
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <Building2 className="w-5 h-5 mr-2 text-emerald-600" />
+            Post New Job
+          </h3>
+          <form onSubmit={handleJobUpload} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
+              <input required name="jobTitle" type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="e.g. Assistant Manager" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Organization / PSU</label>
+              <input required name="organization" type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="e.g. SAIL, BHEL" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select name="jobType" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                  <option value="Central Govt">Central Govt</option>
+                  <option value="State Govt">State Govt</option>
+                  <option value="PSU">PSU</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
+                <input required name="deadline" type="date" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Official Link</label>
+              <input required name="link" type="url" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="https://..." />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notification PDF</label>
+                <input name="file" type="file" accept=".pdf" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"/>
+            </div>
+            <button 
+              disabled={isLoading}
+              className="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center justify-center"
+            >
+              {isLoading ? 'Posting...' : 'Post Job News'}
+            </button>
+          </form>
+        </Card>
+      </div>
+
+      <div className="lg:col-span-2">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Job Title / Org</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Type</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Deadline</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {jobData.map(job => (
+                  <tr key={job.id} className="hover:bg-gray-50 group">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-800">{job.jobTitle}</span>
+                        <span className="text-xs text-gray-500">{job.organization}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge type={job.type} />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Clock size={14} className="mr-2" />
+                        {job.deadline}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        <a href={job.link} target="_blank" rel="noreferrer" className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
+                          <ExternalLink size={16} />
+                        </a>
+                        <button 
+                          onClick={() => deleteItem(job.id, 'job')}
+                          className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {jobData.length === 0 && (
+              <div className="text-center py-12 text-gray-500">No jobs posted yet.</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 // --- Main Application Component ---
 export default function AdminDashboard() {
   const router = useRouter();
-  
-  // 1. Get User from Store (User might be null initially)
   const { user, logout } = useUserStore();
   
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // "Database" State
-  const [learningData, setLearningData] = useState(INITIAL_DATA);
-  const [jobData, setJobData] = useState(INITIAL_DATA.jobs);
+  const [learningData, setLearningData] = useState<LearningDataState>(INITIAL_DATA);
+  const [jobData, setJobData] = useState<JobItem[]>(INITIAL_JOBS);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: string } | null>(null);
 
-  // --- Auth Check (Optional: Redirect if no user) ---
   useEffect(() => {
-
    if (!user) router.push('/login');
   }, [user, router]);
 
@@ -127,8 +481,8 @@ export default function AdminDashboard() {
     await new Promise(resolve => setTimeout(resolve, 800));
 
     const file = formData.get('file') as File;
-    const newItem = {
-      id: Date.now(),
+    const newItem: LearningItem = {
+      id: crypto.randomUUID(),
       title: formData.get('title') as string,
       description: formData.get('description') as string,
       file: file?.name || 'document.pdf',
@@ -152,7 +506,7 @@ export default function AdminDashboard() {
 
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    const newJob = {
+    const newJob: JobItem = {
       id: Date.now(),
       jobTitle: formData.get('jobTitle') as string,
       organization: formData.get('organization') as string,
@@ -168,7 +522,7 @@ export default function AdminDashboard() {
     e.currentTarget.reset();
   };
 
-  const deleteItem = (id: number, type: 'job' | 'learning', category?: 'employee' | 'employer') => {
+  const deleteItem = (id: number | string, type: 'job' | 'learning', category?: 'employee' | 'employer') => {
     if (type === 'job') {
       setJobData(prev => prev.filter(item => item.id !== id));
     } else if (category) {
@@ -180,294 +534,11 @@ export default function AdminDashboard() {
     showNotification('Item deleted', 'error');
   };
 
-  // --- Views ---
-
-  const DashboardHome = () => (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-l-4 border-l-blue-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Employee Docs</p>
-              <h3 className="text-2xl font-bold text-gray-800">{learningData.employee.length}</h3>
-            </div>
-            <UserCheck className="w-8 h-8 text-blue-500 opacity-20" />
-          </div>
-        </Card>
-        <Card className="border-l-4 border-l-purple-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Employer Docs</p>
-              <h3 className="text-2xl font-bold text-gray-800">{learningData.employer.length}</h3>
-            </div>
-            <Briefcase className="w-8 h-8 text-purple-500 opacity-20" />
-          </div>
-        </Card>
-        <Card className="border-l-4 border-l-emerald-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Active Job Postings</p>
-              <h3 className="text-2xl font-bold text-gray-800">{jobData.length}</h3>
-            </div>
-            <Building2 className="w-8 h-8 text-emerald-500 opacity-20" />
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Recent Job Postings</h3>
-            <button onClick={() => setActiveTab('jobs')} className="text-sm text-blue-600 hover:underline">View All</button>
-          </div>
-          <div className="space-y-3">
-            {jobData.slice(0, 3).map(job => (
-              <div key={job.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div>
-                  <p className="font-medium text-gray-800">{job.jobTitle}</p>
-                  <p className="text-xs text-gray-500">{job.organization}</p>
-                </div>
-                <Badge type={job.type} />
-              </div>
-            ))}
-            {jobData.length === 0 && <p className="text-center text-gray-400 py-4">No jobs posted yet.</p>}
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">Recent Learning Materials</h3>
-          </div>
-          <div className="space-y-3">
-            {[...learningData.employee, ...learningData.employer].sort((a,b) => b.id - a.id).slice(0, 3).map(item => (
-              <div key={item.id} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                <FileText className="w-5 h-5 text-gray-400 mr-3" />
-                <div className="flex-1 overflow-hidden">
-                  <p className="font-medium text-gray-800 truncate">{item.title}</p>
-                  <p className="text-xs text-gray-500">{item.date}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-    </div>
-  );
-
-  const LearningUploadView = ({ category }: { category: 'employee' | 'employer' }) => {
-    const isEmployee = category === 'employee';
-    const data = learningData[category];
-    const colorClass = isEmployee ? 'blue' : 'purple';
-    
-    return (
-      <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">
-              {isEmployee ? 'Employee' : 'Employer'} Learning
-            </h2>
-            <p className="text-gray-500">Upload training materials and guides for {isEmployee ? 'staff' : 'management'}.</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <Card>
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
-                <Upload className={`w-5 h-5 mr-2 text-${colorClass}-600`} />
-                Upload New Material
-              </h3>
-              <form onSubmit={(e) => handleLearningUpload(e, category)} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                  <input required name="title" type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Safety Manual 2024" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea name="description" rows={3} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Brief description of content..." />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">File (PDF/Video)</label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors">
-                    <input required name="file" type="file" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
-                  </div>
-                </div>
-                <button 
-                  disabled={isLoading}
-                  className={`w-full py-2 px-4 bg-${colorClass}-600 hover:bg-${colorClass}-700 text-white rounded-lg transition-colors flex items-center justify-center`}
-                >
-                  {isLoading ? 'Uploading...' : 'Upload Material'}
-                </button>
-              </form>
-            </Card>
-          </div>
-
-          <div className="lg:col-span-2 space-y-4">
-            {data.map(item => (
-              <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-start justify-between hover:shadow-md transition-shadow">
-                <div className="flex items-start space-x-4">
-                  <div className={`p-3 rounded-lg bg-${colorClass}-50 text-${colorClass}-600`}>
-                    <FileText size={24} />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-800">{item.title}</h4>
-                    <p className="text-sm text-gray-600 mb-1">{item.description}</p>
-                    <div className="flex items-center space-x-3 text-xs text-gray-400">
-                      <span>{item.date}</span>
-                      <span>•</span>
-                      <span>{item.file}</span>
-                    </div>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => deleteItem(item.id, 'learning', category)}
-                  className="text-gray-400 hover:text-red-500 p-2"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            ))}
-            {data.length === 0 && (
-              <div className="text-center py-12 bg-gray-50 rounded-xl border-dashed border-2 border-gray-200">
-                <p className="text-gray-500">No materials uploaded yet.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
+  // Helper to close menu and set tab
+  const handleNavClick = (id: string) => {
+    setActiveTab(id);
+    setIsMobileMenuOpen(false);
   };
-
-  const GovtJobView = () => (
-    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Govt & PSU Job News</h2>
-          <p className="text-gray-500">Post new job openings and notifications.</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <Card>
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <Building2 className="w-5 h-5 mr-2 text-emerald-600" />
-              Post New Job
-            </h3>
-            <form onSubmit={handleJobUpload} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
-                <input required name="jobTitle" type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="e.g. Assistant Manager" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Organization / PSU</label>
-                <input required name="organization" type="text" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="e.g. SAIL, BHEL" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                  <select name="jobType" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
-                    <option value="Central Govt">Central Govt</option>
-                    <option value="State Govt">State Govt</option>
-                    <option value="PSU">PSU</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
-                  <input required name="deadline" type="date" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Official Link</label>
-                <input required name="link" type="url" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="https://..." />
-              </div>
-              <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notification PDF</label>
-                  <input name="file" type="file" accept=".pdf" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"/>
-              </div>
-              <button 
-                disabled={isLoading}
-                className="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors flex items-center justify-center"
-              >
-                {isLoading ? 'Posting...' : 'Post Job News'}
-              </button>
-            </form>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Job Title / Org</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Type</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Deadline</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {jobData.map(job => (
-                    <tr key={job.id} className="hover:bg-gray-50 group">
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-gray-800">{job.jobTitle}</span>
-                          <span className="text-xs text-gray-500">{job.organization}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge type={job.type} />
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Clock size={14} className="mr-2" />
-                          {job.deadline}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end space-x-2">
-                          <a href={job.link} target="_blank" rel="noreferrer" className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
-                            <ExternalLink size={16} />
-                          </a>
-                          <button 
-                            onClick={() => deleteItem(job.id, 'job')}
-                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {jobData.length === 0 && (
-                <div className="text-center py-12 text-gray-500">No jobs posted yet.</div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const SidebarItem = ({ id, icon: Icon, label }: { id: string; icon: any; label: string }) => (
-    <button
-      onClick={() => {
-        setActiveTab(id);
-        setIsMobileMenuOpen(false);
-      }}
-      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
-        activeTab === id 
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-          : 'text-gray-600 hover:bg-gray-100'
-      }`}
-    >
-      <Icon size={20} />
-      <span className="font-medium">{label}</span>
-    </button>
-  );
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex text-gray-900">
@@ -485,17 +556,16 @@ export default function AdminDashboard() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <SidebarItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
+          <SidebarItem id="dashboard" icon={LayoutDashboard} label="Dashboard" activeTab={activeTab} onClick={() => handleNavClick('dashboard')} />
           <div className="pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider pl-4">Learning</div>
-          <SidebarItem id="employee" icon={UserCheck} label="Employee Learning" />
-          <SidebarItem id="employer" icon={Briefcase} label="Employer Learning" />
+          <SidebarItem id="employee" icon={UserCheck} label="Employee Learning" activeTab={activeTab} onClick={() => handleNavClick('employee')} />
+          <SidebarItem id="employer" icon={Briefcase} label="Employer Learning" activeTab={activeTab} onClick={() => handleNavClick('employer')} />
           <div className="pt-4 pb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider pl-4">Recruitment</div>
-          <SidebarItem id="jobs" icon={Building2} label="Govt & PSU Jobs" />
+          <SidebarItem id="jobs" icon={Building2} label="Govt & PSU Jobs" activeTab={activeTab} onClick={() => handleNavClick('jobs')} />
         </nav>
 
         <div className="p-4 border-t border-gray-100 space-y-3">
           <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
-            {/* SAFE ACCESS: Handle case where user is null */}
             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
                 {user?.name?.charAt(0) || 'U'} 
             </div>
@@ -525,10 +595,10 @@ export default function AdminDashboard() {
           <button onClick={() => setIsMobileMenuOpen(false)}><X /></button>
         </div>
         <nav className="p-4 space-y-2">
-          <SidebarItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
-          <SidebarItem id="employee" icon={UserCheck} label="Employee Learning" />
-          <SidebarItem id="employer" icon={Briefcase} label="Employer Learning" />
-          <SidebarItem id="jobs" icon={Building2} label="Govt & PSU Jobs" />
+          <SidebarItem id="dashboard" icon={LayoutDashboard} label="Dashboard" activeTab={activeTab} onClick={() => handleNavClick('dashboard')} />
+          <SidebarItem id="employee" icon={UserCheck} label="Employee Learning" activeTab={activeTab} onClick={() => handleNavClick('employee')} />
+          <SidebarItem id="employer" icon={Briefcase} label="Employer Learning" activeTab={activeTab} onClick={() => handleNavClick('employer')} />
+          <SidebarItem id="jobs" icon={Building2} label="Govt & PSU Jobs" activeTab={activeTab} onClick={() => handleNavClick('jobs')} />
         </nav>
         <div className="p-4 border-t border-gray-100">
            <button 
@@ -555,7 +625,6 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center space-x-4">
              <div className="text-right hidden sm:block">
-               {/* SAFE ACCESS */}
                <p className="text-sm font-bold text-gray-700">Welcome, {user?.name?.split(' ')[0] || 'Guest'}</p>
              </div>
             <button className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full">
@@ -566,10 +635,10 @@ export default function AdminDashboard() {
         </header>
 
         <div className="p-6 max-w-7xl mx-auto">
-          {activeTab === 'dashboard' && <DashboardHome />}
-          {activeTab === 'employee' && <LearningUploadView category="employee" />}
-          {activeTab === 'employer' && <LearningUploadView category="employer" />}
-          {activeTab === 'jobs' && <GovtJobView />}
+          {activeTab === 'dashboard' && <DashboardHome learningData={learningData} jobData={jobData} setActiveTab={setActiveTab} />}
+          {activeTab === 'employee' && <LearningUploadView category="employee" learningData={learningData} handleLearningUpload={handleLearningUpload} isLoading={isLoading} deleteItem={deleteItem} />}
+          {activeTab === 'employer' && <LearningUploadView category="employer" learningData={learningData} handleLearningUpload={handleLearningUpload} isLoading={isLoading} deleteItem={deleteItem} />}
+          {activeTab === 'jobs' && <GovtJobView jobData={jobData} handleJobUpload={handleJobUpload} isLoading={isLoading} deleteItem={deleteItem} />}
         </div>
       </main>
     </div>

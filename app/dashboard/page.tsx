@@ -35,6 +35,19 @@ interface Job {
   has_applied: boolean; // From backend logic
 }
 
+interface AppliedJob {
+  id?: number;
+  application_id?: number;
+  role?: string;
+  job_title?: string;
+  company?: string;
+  status?: string;
+  application_status?: string;
+  statusColor?: string;
+  date?: string;
+  applied_date?: string;
+}
+
 // --- CONSTANTS (Static Data for other tabs) ---
 
 const GOVT_JOBS_DATA = [
@@ -349,7 +362,7 @@ const LearningHubView = () => (
 const ApplicationsView = () => {
   const { user } = useUserStore(); 
   // Added type definition to avoid map errors
-  const [AppliedJobs, setAppliedJobs] = useState<any[]>([]);
+  const [AppliedJobs, setAppliedJobs] = useState<AppliedJob[]>([]);
 
   useEffect(() => {
     if (user?.id) {

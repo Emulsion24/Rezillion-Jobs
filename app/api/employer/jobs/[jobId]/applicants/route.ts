@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+interface JobApplicationRow {
+  id: string;
+  name: string | null;
+  email: string;
+  location: string;
+  skills: string[] | null;
+  experience: string;
+  appliedDate: string;
+  status: string;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ jobId: string }> }
@@ -39,7 +50,7 @@ export async function GET(
 
     const result = await db.query(query, [jobId]);
 
-    const applicants = result.rows.map((row: any) => ({
+    const applicants = (result.rows as JobApplicationRow[]).map((row: JobApplicationRow) => ({
       id: row.id,
       name: row.name || "Unknown Candidate", // Fallback if profile incomplete
       email: row.email,

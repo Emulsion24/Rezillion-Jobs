@@ -145,7 +145,17 @@ export default function EmployerDashboardPage() {
         
         if (res.ok) {
             const data = await res.json();
-            const mappedJobs = data.map((j: any) => ({
+            interface JobApiResponse {
+              id: number;
+              title: string;
+              role_category: string;
+              applicants_count: string;
+              status: 'Active' | 'Closed';
+              location: string;
+              created_at: string;
+              job_type: string;
+            }
+            const mappedJobs = (data as JobApiResponse[]).map((j) => ({
                 id: j.id,
                 title: j.title,
                 roleCategory: j.role_category,

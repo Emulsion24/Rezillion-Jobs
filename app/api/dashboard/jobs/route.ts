@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       WHERE j.status = 'Active'
     `;
 
-    const params: any[] = [userId ? parseInt(userId) : null];
+    const params: (string | number | null)[] = [userId ? parseInt(userId) : null];
     let paramIndex = 2;
 
     // Filter: Search Text (Title or Company)
