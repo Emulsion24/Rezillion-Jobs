@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+// Assuming db is from a library like @vercel/postgres or similar
 import { db } from '@/lib/db';
 
 // Define the shape of the data returned to the frontend
@@ -47,9 +48,12 @@ export async function GET(request: Request) {
       ORDER BY j.created_at DESC
     `;
 
+    // Execute query
     const result = await db.query(query, [userId]);
     
-    const rows: AppliedJobRow[] = result.rows;
+    // FIX: Type Assertion added here
+    // We explicitly tell TypeScript that 'result.rows' matches our interface
+    const rows = result.rows as AppliedJobRow[];
 
     return NextResponse.json(rows);
 
