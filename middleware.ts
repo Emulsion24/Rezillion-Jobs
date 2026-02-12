@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
 // Define paths that require specific roles
-const protectedPaths = ['/dashboard', '/employer', '/admin'];
+const protectedPaths = ['/dashboard', '/employer', '/admin','/creator'];
 const authPaths = ['/login', '/signup'];
 
 export async function middleware(request: NextRequest) {
@@ -49,6 +49,8 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/employer/dashboard', request.url));
       } else if (role === 'admin') {
         return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+      } else if (role === 'creator') {
+        return NextResponse.redirect(new URL('/creator/dashboard', request.url));
       } else {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
@@ -68,6 +70,9 @@ export async function middleware(request: NextRequest) {
 
     // If anyone non-admin tries to go to Admin pages
     if (pathname.startsWith('/admin') && role !== 'admin') {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+      if (pathname.startsWith('/creator') && role !== 'creator') {
       return NextResponse.redirect(new URL('/login', request.url));
     }
   }

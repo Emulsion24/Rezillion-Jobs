@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JobFlow | Find Your Next Career Move",
+  title: "GreenzeeJobs | Find Your Next Career Move",
   description: "Connect with top employers and find your dream job in tech, marketing, and design.",
   keywords: ["jobs", "careers", "hiring", "employment", "remote work"],
 };
